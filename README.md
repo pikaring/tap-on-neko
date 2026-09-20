@@ -3,23 +3,36 @@
 タップだけであそべる、**高齢者向けの「猫のお世話＆脳トレ」ゲーム**です。
 バックエンドなし（HTML / CSS / Vanilla JavaScript のみ）で、セーブデータは LocalStorage に保存します。
 
-**あそぶ → https://pikaring.github.io/tap-on-neko/**
+**紹介ページ → https://pikaring.github.io/tap-on-neko/**
+**あそぶ → https://pikaring.github.io/tap-on-neko/app/**
 
 ## ファイル
+
+紹介ページ（`/`）とゲーム本体（`/app/`）に分かれています。
+
 | ファイル | 役割 |
 | --- | --- |
-| `index.html` | 画面の構造（ヘッダー／部屋／ボタン／クイズ） |
-| `style.css` | 大きなUI・高コントラスト・アニメーション |
-| `main.js` | ゲームロジック・LocalStorage・時間判定・ゲージ・クイズ制御 |
-| `questions-kotoba.js` | ことば穴うめクイズの出題データ（[tap-on-kotoba](https://github.com/pikaring/tap-on-kotoba) から流用） |
-| `images/cat-*.png` | 猫の9ポーズ・3柄（スプライトシート） |
-| `images/items.png` | 部屋の小物9種（スプライトシート） |
-| `images/animals.png` | クイズのかげあて用の動物9種（スプライトシート） |
-| `images/room.jpg` | 部屋の背景（窓・壁・床） |
-| `images/icon-*.png` | ホーム画面・タブ用のアイコン |
-| `manifest.json` | ホーム画面に追加したときの名前・アイコン・表示方法 |
+| `index.html` | 紹介ページ。ほかのツールと同じデザイン（`assets/site.css`） |
+| `assets/site.css` | 紹介ページの見た目。アクセント色はローズ `#d0526b` |
+| `assets/icon.png` | 紹介ページ・ポータル・OG画像で使うアイコン |
+| `app/index.html` | ゲームの画面（ヘッダー／部屋／ボタン／クイズ） |
+| `app/style.css` | 大きなUI・高コントラスト・アニメーション |
+| `app/main.js` | ゲームロジック・LocalStorage・時間判定・ゲージ・クイズ制御 |
+| `app/questions-kotoba.js` | ことば穴うめクイズの出題データ（[tap-on-kotoba](https://github.com/pikaring/tap-on-kotoba) から流用） |
+| `app/images/cat-*.png` | 猫の17ポーズ・4柄（スプライトシート） |
+| `app/images/items.png` | 部屋の小物9種（スプライトシート） |
+| `app/images/animals.png` | クイズのかげあて用の動物9種（スプライトシート） |
+| `app/images/room.jpg` | 部屋の背景（窓・壁・床） |
+| `app/images/icon-*.png` | ホーム画面・タブ用のアイコン |
+| `app/manifest.json` | ホーム画面に追加したときの名前・アイコン・表示方法 |
 | `tools/build_cat_sheet.py` | 生成AIの出力から背景除去・整列を行う前処理 |
 | `docs/` | 画像を作り直すときの生成プロンプト |
+
+### ホーム画面に追加している場合
+
+以前ホーム画面に追加した端末は、アイコンの起動先が `/tap-on-neko/`（紹介ページ）に
+なります。紹介ページは**全画面表示で開かれたときだけ `app/` へ自動で移動**するので、
+アイコンからは今までどおりゲームが直接開きます（`index.html` 冒頭の数行）。
 
 ## あそびかた
 1. 「あそぶ（クイズ）」で**難読漢字の読みクイズ**。正解すると **あそびゲージ +25**・なかよし度 **+2**
@@ -82,9 +95,9 @@
 
 ## ローカルで動かす
 ```sh
-# そのまま index.html を開くだけでも動きます
 npx http-server -p 8080
-# → http://127.0.0.1:8080/
+# 紹介ページ → http://127.0.0.1:8080/
+# ゲーム     → http://127.0.0.1:8080/app/
 ```
 
 ## GitHub Pages
