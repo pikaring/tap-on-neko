@@ -28,8 +28,16 @@ def remove_background(path):
     sat = rgb.max(2) - rgb.min(2)
     bright = rgb.mean(2)
 
-    # 無彩色（灰色・白）で、中間から明るい範囲を背景の候補とする
-    cand = (sat < 16) & (bright > 150) & (bright < 246)
+    # 四隅を見て、背景が「純白のベタ塗り」か「市松模様（中間の灰色）」かを判定する。
+    # 市松模様のときは、絵のまわりの白いフチ（ステッカー風の縁取り）を
+    # 残したいので、純白を背景の候補から外す。
+    corners = [bright[2, 2], bright[2, W-3], bright[H-3, 2], bright[H-3, W-3]]
+    white_bg = (sum(corners) / 4) > 246
+    # 無彩色（灰色・白）で、明るい範囲を背景の候補とする
+    cand = (sat < 16) & (bright > 150)
+    if not white_bg:
+        cand &= bright < 246
+    print(f'  背景の種類: {"白のベタ塗り" if white_bg else "市松模様"}')
 
     bg = np.zeros((H, W), bool)
     dq = deque()
@@ -55,6 +63,8 @@ def remove_background(path):
 
     # JPEG圧縮でにじんだ輪郭まわりの灰色ハローを2px分だけ追加で除去
     halo = (sat < 26) & (bright > 140)
+    if not white_bg:
+        halo &= bright < 250        # 白いフチは のこす
     for _ in range(2):
         bg |= dilate(bg) & halo
 

@@ -134,11 +134,19 @@ function catImagePath(id) {
 /* ---------------------------------------------------------
    4. なかよし度で ふえる へやの アイテム
    --------------------------------------------------------- */
+/* cell は images/items.png（3×3）の [たて, よこ] の いち。
+   pos は へやの なかの おく位置（bottom が おおきいほど おく＝かべ側）。
+   小物どうしの 大小は 画像側で つけてあるので、わくの おおきさは ぜんぶ 同じ。 */
 var UNLOCKS = [
-  { point: 10, id: 'itemCushion', name: 'ふかふかの クッション' },
-  { point: 30, id: 'itemToy',     name: 'まるい けいと' },
-  { point: 50, id: 'itemFlower',  name: 'きれいな おはな' },
-  { point: 80, id: 'itemFish',     name: 'おさかなの おやつ' }
+  { point:  10, name: 'ふかふかの クッション', emoji: '🛋️', cell: [0, 0], pos: { left:  '1%',  bottom: '15%' } },
+  { point:  30, name: 'まるい けいと',         emoji: '🧶', cell: [0, 1], pos: { right: '21%', bottom: '2%'  } },
+  { point:  50, name: 'きれいな おはな',       emoji: '🌷', cell: [0, 2], pos: { right: '2%',  bottom: '2%'  } },
+  { point:  80, name: 'おさかなの おやつ',     emoji: '🐟', cell: [1, 0], pos: { left:  '1%',  bottom: '2%'  } },
+  { point: 120, name: 'ねこ用の ベッド',       emoji: '🧺', cell: [1, 1], pos: { right: '2%',  bottom: '28%' } },
+  { point: 170, name: 'ねこじゃらし',          emoji: '🪶', cell: [1, 2], pos: { right: '2%',  bottom: '15%' } },
+  { point: 230, name: 'みずの おさら',         emoji: '💧', cell: [2, 0], pos: { left:  '20%', bottom: '2%'  } },
+  { point: 300, name: 'キャットタワー',        emoji: '🪑', cell: [2, 1], pos: { left:  '1%',  bottom: '28%' } },
+  { point: 400, name: 'おもちゃの ねずみ',     emoji: '🐭', cell: [2, 2], pos: { left:  '20%', bottom: '15%' } }
 ];
 
 /* ---------------------------------------------------------
@@ -151,6 +159,8 @@ function cacheElements() {
   el.level          = document.getElementById('level');
   el.gaugeBar       = document.getElementById('gaugeBar');
   el.message        = document.getElementById('message');
+  el.room           = document.getElementById('room');
+  el.roomItems      = document.getElementById('roomItems');
   el.cat            = document.getElementById('cat');
   el.effects        = document.getElementById('effects');
   el.btnPet         = document.getElementById('btnPet');
@@ -187,12 +197,33 @@ function renderStatus() {
   el.gaugeBar.style.width = (state.friendship % 10) * 10 + '%';
 }
 
-/** へやの アイテムを ひょうじ（なかよし度に とうたつした ものだけ） */
+/** へやの かざりを つくる（さいしょに 1かいだけ） */
+function buildRoomItems() {
+  el.roomItems.textContent = '';
+  UNLOCKS.forEach(function (item) {
+    var node = document.createElement('div');
+    node.className = 'room-item';
+    node.hidden = true;
+    /* 3×3 の どの こまを みせるか */
+    node.style.backgroundPosition = (item.cell[1] * 50) + '% ' + (item.cell[0] * 50) + '%';
+    if (item.pos.left)  { node.style.left  = item.pos.left; }
+    if (item.pos.right) { node.style.right = item.pos.right; }
+    node.style.bottom = item.pos.bottom;
+
+    var emoji = document.createElement('span');
+    emoji.className = 'room-item__emoji';
+    emoji.textContent = item.emoji;
+    node.appendChild(emoji);
+
+    item.node = node;
+    el.roomItems.appendChild(node);
+  });
+}
+
+/** へやの かざりを ひょうじ（なかよし度に とうたつした ものだけ） */
 function renderRoomItems() {
   UNLOCKS.forEach(function (item) {
-    var node = document.getElementById(item.id);
-    if (!node) { return; }
-    node.hidden = (state.friendship < item.point);
+    if (item.node) { item.node.hidden = (state.friendship < item.point); }
   });
 }
 
@@ -289,6 +320,21 @@ function setPose(name, holdMs) {
   if (holdMs > 0) {
     poseTimer = window.setTimeout(function () { setPose(basePose, 0); }, holdMs);
   }
+}
+
+/** 小物と へやの 背景画像を よみこむ（しっぱいしても 絵文字と グラデーションで あそべる） */
+function enableRoomImages() {
+  var items = new Image();
+  items.addEventListener('load', function () {
+    el.roomItems.classList.add('room-items--image');
+  });
+  items.src = 'images/items.png';
+
+  var room = new Image();
+  room.addEventListener('load', function () {
+    el.room.classList.add('room--image');
+  });
+  room.src = 'images/room.jpg';
 }
 
 /**
@@ -543,7 +589,9 @@ function init() {
   var firstTime = !findPattern(state.catPattern);
 
   renderStatus();
+  buildRoomItems();
   renderRoomItems();
+  enableRoomImages();
   setPose(basePose, 0);
   applyCatPattern(firstTime ? DEFAULT_CAT : state.catPattern, false);
   showGreeting();

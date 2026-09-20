@@ -25,6 +25,9 @@
   --fs-message: clamp(22px, 5.2vw, 34px);
   --fs-button:  clamp(26px, 6.4vw, 40px);
   --fs-quiz:    clamp(24px, 5.8vw, 38px);
+
+  /* へやの かざりの おおきさ（小物どうしの 大小は 画像側で つけてある） */
+  --item-size:  clamp(64px, 18vw, 110px);
 }
 
 * { box-sizing: border-box; }
@@ -133,13 +136,14 @@ body {
       var(--c-room-floor) 100%);
 }
 
-/* あとで へやの 画像に さしかえる ときは この クラスを つかう
+/* へやの 背景画像。よみこみに 成功した ときだけ main.js が この クラスを つける
+   （よみこめない ときは 上の グラデーションの かべと ゆかの ままで あそべる）。
+   まどが きれる のを ふせぐため、左下を きじゅんに あわせる。 */
 .room--image {
-  background-image: url("images/room.png");
+  background-image: url("images/room.jpg");
   background-size: cover;
-  background-position: center bottom;
+  background-position: left bottom;
 }
-*/
 
 /* へやの かざり */
 .room-items {
@@ -150,29 +154,32 @@ body {
 
 .room-item {
   position: absolute;
-  text-align: center;
+  width: var(--item-size);
+  height: var(--item-size);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   animation: pop-in .6s ease both;
 }
 
+/* display を してい すると hidden が きかなく なるので、あらためて けす */
+.room-item[hidden] { display: none; }
+
+/* 小物の 画像（images/items.png）は 3×3 の 9こが 1まいに なった スプライトシート。
+   よみこみに 成功した ときだけ main.js が この クラスを つける
+   （よみこめない ときは 絵文字の ままで あそべる）。 */
+.room-items--image .room-item {
+  background-image: url("images/items.png");
+  background-repeat: no-repeat;
+  background-size: 300% 300%;        /* 9このうち 1こだけを みせる */
+}
+
+.room-items--image .room-item__emoji { display: none; }
+
 .room-item__emoji {
-  display: block;
-  font-size: clamp(48px, 13vw, 84px);
+  font-size: calc(var(--item-size) * .78);
   line-height: 1;
 }
-
-.room-item__name {
-  display: block;
-  font-size: clamp(14px, 3.2vw, 18px);
-  background: rgba(255,255,255,.85);
-  border-radius: 999px;
-  padding: 2px 10px;
-  margin-top: 2px;
-}
-
-.room-item--cushion { left: 6%;  bottom: 6%; }
-.room-item--toy     { right: 7%; bottom: 8%; }
-.room-item--flower  { left: 8%;  top: 8%; }
-.room-item--fish    { right: 8%; top: 8%; }
 
 /* へやの なかの ボタン（ねこを かえる）。
    したの おおきな ボタン2つは そのまま のこす ため、かべの うえに おく。 */

@@ -25,25 +25,8 @@
   <!-- ===== メインビュー：へやと ねこ ===== -->
   <main class="room" id="room">
 
-    <!-- へやの かざり（なかよし度で ふえる） -->
-    <div class="room-items" id="roomItems">
-      <div class="room-item room-item--cushion" id="itemCushion" hidden>
-        <span class="room-item__emoji">🛋️</span>
-        <span class="room-item__name">クッション</span>
-      </div>
-      <div class="room-item room-item--toy" id="itemToy" hidden>
-        <span class="room-item__emoji">🧶</span>
-        <span class="room-item__name">けいと</span>
-      </div>
-      <div class="room-item room-item--flower" id="itemFlower" hidden>
-        <span class="room-item__emoji">🌷</span>
-        <span class="room-item__name">おはな</span>
-      </div>
-      <div class="room-item room-item--fish" id="itemFish" hidden>
-        <span class="room-item__emoji">🐟</span>
-        <span class="room-item__name">おさかな</span>
-      </div>
-    </div>
+    <!-- へやの かざり（なかよし度で ふえる。なかみは main.js が つくる） -->
+    <div class="room-items" id="roomItems"></div>
 
     <!-- ねこの がらを えらぶ ボタン -->
     <button type="button" class="room-button" id="btnCatPicker">
