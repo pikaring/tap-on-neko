@@ -31,6 +31,24 @@
     <div class="gauge" aria-hidden="true">
       <div class="gauge__bar" id="gaugeBar"></div>
     </div>
+    <!-- おなかと あそびの ゲージ -->
+    <div class="meters">
+      <div class="meter" id="meterFood">
+        <span class="meter__label">
+          <span class="meter__icon" aria-hidden="true">🍚</span>おなか
+          <span class="meter__state" id="meterFoodState"></span>
+        </span>
+        <span class="meter__bar"><span class="meter__fill" id="meterFoodFill"></span></span>
+      </div>
+      <div class="meter" id="meterPlay">
+        <span class="meter__label">
+          <span class="meter__icon" aria-hidden="true">🧶</span>あそび
+          <span class="meter__state" id="meterPlayState"></span>
+        </span>
+        <span class="meter__bar"><span class="meter__fill" id="meterPlayFill"></span></span>
+      </div>
+    </div>
+
     <p class="message" id="message" role="status" aria-live="polite">よろしくニャ！</p>
   </header>
 
@@ -77,16 +95,21 @@
       <h2 class="modal__title" id="quizTitle">ごはんの クイズ</h2>
 
       <div class="quiz">
+        <p class="quiz__kind" id="quizKind"></p>
         <div class="quiz__silhouette" id="quizSilhouette" hidden aria-hidden="true">
           <span class="quiz__silhouette-emoji" id="quizSilhouetteEmoji"></span>
         </div>
         <p class="quiz__question" id="quizQuestion"></p>
         <div class="quiz__choices" id="quizChoices"></div>
+        <div class="quiz__answer" id="quizAnswer" hidden>
+          <p class="quiz__yomi" id="quizYomi"></p>
+          <p class="quiz__imi" id="quizImi"></p>
+        </div>
         <p class="quiz__result" id="quizResult" role="status" aria-live="assertive"></p>
       </div>
 
       <button type="button" class="btn btn--close" id="btnCloseQuiz">
-        <span class="btn__text">とじる</span>
+        <span class="btn__text" id="btnCloseQuizText">とじる</span>
       </button>
 
     </div>
@@ -112,6 +135,7 @@
     <p class="bignews__text" id="bignewsText"></p>
   </div>
 
+  <script src="questions-kotoba.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

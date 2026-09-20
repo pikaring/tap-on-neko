@@ -16,7 +16,10 @@ function defaultSave() {
   return {
     friendship: 0,      // なかよし度の ごうけい
     lastVisit: 0,       // まえに あそんだ ときの じかん（ミリびょう）
-    quizQueue: [],      // まだ だしていない クイズの ばんごう
+    food: 0,            // おなかの ゲージ（0〜100）
+    play: 0,            // あそびの ゲージ（0〜100）
+    kotobaSeen: [],     // さいきん だした ことばの もんだい
+    silhouetteSeen: [], // さいきん だした かげあての もんだい
     catPattern: ''      // えらんだ ねこの がら（はじめては から）
   };
 }
@@ -39,11 +42,16 @@ function loadSave() {
     if (typeof data.catPattern === 'string' && findPattern(data.catPattern)) {
       save.catPattern = data.catPattern;
     }
-    if (Array.isArray(data.quizQueue)) {
-      save.quizQueue = data.quizQueue.filter(function (n) {
-        return typeof n === 'number' && n >= 0 && n < QUIZZES.length;
-      });
-    }
+    ['food', 'play'].forEach(function (key) {
+      if (typeof data[key] === 'number' && isFinite(data[key])) {
+        save[key] = Math.min(METER_MAX, Math.max(0, data[key]));
+      }
+    });
+    ['kotobaSeen', 'silhouetteSeen'].forEach(function (key) {
+      if (Array.isArray(data[key])) {
+        save[key] = data[key].filter(function (n) { return typeof n === 'number' && n >= 0; });
+      }
+    });
     return save;
   } catch (e) {
     return defaultSave();   // プライベートモードなどで つかえない ときも そのまま あそべる
@@ -61,107 +69,47 @@ function saveGame() {
 }
 
 /* ---------------------------------------------------------
-   2. クイズの データ（ことわざ6もん＋かげあて9もん）
-      type: 'text'（ことばの あなうめ） / 'silhouette'（かげあて）
+   2. クイズの データ
+      ・ことばの あなうめ：questions-kotoba.js（tap-on-kotoba の 出題データ）
+      ・かげあて：images/animals.png の 9しゅるい
    --------------------------------------------------------- */
-var QUIZZES = [
-  /* ことわざの あなうめ */
-  {
-    type: 'text',
-    question: '「〇〇も あるけば ぼうに あたる」\n〇〇に はいるのは どれ？',
-    choices: ['いぬ', 'ねこ', 'とり'],
-    answer: 0
-  },
-  {
-    type: 'text',
-    question: '「ねこに 〇〇」\nねうちが わからない ことを いう ことば。',
-    choices: ['こばん', 'ざぶとん', 'おかし'],
-    answer: 0
-  },
-  {
-    type: 'text',
-    question: '「さるも きから 〇〇」\n〇〇に はいるのは どれ？',
-    choices: ['おちる', 'のぼる', 'とぶ'],
-    answer: 0
-  },
-  {
-    type: 'text',
-    question: '「ねこの 〇 も かりたい」\nとても いそがしい ときの ことば。',
-    choices: ['て', 'あし', 'みみ'],
-    answer: 0
-  },
-  {
-    type: 'text',
-    question: '「はなより 〇〇」\nみるより たべる ほうが いい という ことば。',
-    choices: ['だんご', 'おもち', 'おかし'],
-    answer: 0
-  },
-  {
-    type: 'text',
-    question: '「ちりも つもれば 〇〇となる」\n〇〇に はいるのは どれ？',
-    choices: ['やま', 'かわ', 'うみ'],
-    answer: 0
-  },
+/* questions-kotoba.js が よみこめない ときは かげあてだけで あそべる */
+var KOTOBA = (typeof QUESTIONS !== 'undefined' && Array.isArray(QUESTIONS)) ? QUESTIONS : [];
 
-  /* かげあて（cell は images/animals.png の [たて, よこ]） */
-  {
-    type: 'silhouette', cell: [0, 0], emoji: '🐘',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['ぞう', 'きりん', 'うま'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [0, 1], emoji: '🦒',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['きりん', 'うま', 'ぞう'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [0, 2], emoji: '🐰',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['うさぎ', 'ねこ', 'いぬ'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [1, 0], emoji: '🐔',
-    question: 'この かげは なんの とり？',
-    choices: ['にわとり', 'はと', 'すずめ'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [1, 1], emoji: '🐟',
-    question: 'この かげは なにかな？',
-    choices: ['さかな', 'とり', 'むし'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [1, 2], emoji: '🐢',
-    question: 'この かげは なんの いきもの？',
-    choices: ['かめ', 'かに', 'かえる'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [2, 0], emoji: '🦋',
-    question: 'この かげは なんの むし？',
-    choices: ['ちょう', 'とんぼ', 'はち'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [2, 1], emoji: '🐴',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['うま', 'うし', 'ぶた'],
-    answer: 0
-  },
-  {
-    type: 'silhouette', cell: [2, 2], emoji: '🐷',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['ぶた', 'いぬ', 'ひつじ'],
-    answer: 0
-  }
+/* つかう もんだいの しゅるい。
+   y=四字熟語 / k=ことわざ / i=慣用句（どれも あなうめ）
+   d=難読漢字 は あなうめでは ないので つかわない（くわえたい ときは 'd' を たす） */
+var KOTOBA_TYPES = ['y', 'k', 'i'];
+
+var KOTOBA_LABEL = {
+  y: 'よじじゅくご',
+  k: 'ことわざ',
+  i: 'かんようく',
+  d: 'かんじの よみ'
+};
+
+var kotobaPool = KOTOBA.filter(function (q) {
+  return q && typeof q.q === 'string' && Array.isArray(q.c) && KOTOBA_TYPES.indexOf(q.t) !== -1;
+});
+
+/* かげあて（cell は images/animals.png の [たて, よこ]） */
+var SILHOUETTES = [
+  { cell: [0, 0], emoji: '🐘', question: 'この かげは なんの どうぶつ？', choices: ['ぞう', 'きりん', 'うま'] },
+  { cell: [0, 1], emoji: '🦒', question: 'この かげは なんの どうぶつ？', choices: ['きりん', 'うま', 'ぞう'] },
+  { cell: [0, 2], emoji: '🐰', question: 'この かげは なんの どうぶつ？', choices: ['うさぎ', 'ねこ', 'いぬ'] },
+  { cell: [1, 0], emoji: '🐔', question: 'この かげは なんの とり？',     choices: ['にわとり', 'はと', 'すずめ'] },
+  { cell: [1, 1], emoji: '🐟', question: 'この かげは なにかな？',         choices: ['さかな', 'とり', 'むし'] },
+  { cell: [1, 2], emoji: '🐢', question: 'この かげは なんの いきもの？', choices: ['かめ', 'かに', 'かえる'] },
+  { cell: [2, 0], emoji: '🦋', question: 'この かげは なんの むし？',     choices: ['ちょう', 'とんぼ', 'はち'] },
+  { cell: [2, 1], emoji: '🐴', question: 'この かげは なんの どうぶつ？', choices: ['うま', 'うし', 'ぶた'] },
+  { cell: [2, 2], emoji: '🐷', question: 'この かげは なんの どうぶつ？', choices: ['ぶた', 'いぬ', 'ひつじ'] }
 ];
 
+/* かげあてを だす わりあい（4もんに 1もんくらい） */
+var SILHOUETTE_ONE_IN = 4;
+
 /* ---------------------------------------------------------
-   3. ねこの がら（3しゅるい）
+   3. ねこの がら（4しゅるい）
       どれも 同じ 9ポーズ・同じ おおきさ・同じ 立ち位置で 作って あるので、
       入れかえても 画面の みえ方は かわらない。
    --------------------------------------------------------- */
@@ -228,6 +176,17 @@ function cacheElements() {
   el.quizSilhouette = document.getElementById('quizSilhouette');
   el.quizSilhouetteEmoji = document.getElementById('quizSilhouetteEmoji');
   el.btnCloseQuiz   = document.getElementById('btnCloseQuiz');
+  el.btnCloseQuizText = document.getElementById('btnCloseQuizText');
+  el.quizKind       = document.getElementById('quizKind');
+  el.quizAnswer     = document.getElementById('quizAnswer');
+  el.quizYomi       = document.getElementById('quizYomi');
+  el.quizImi        = document.getElementById('quizImi');
+  el.meterFood      = document.getElementById('meterFood');
+  el.meterFoodFill  = document.getElementById('meterFoodFill');
+  el.meterFoodState = document.getElementById('meterFoodState');
+  el.meterPlay      = document.getElementById('meterPlay');
+  el.meterPlayFill  = document.getElementById('meterPlayFill');
+  el.meterPlayState = document.getElementById('meterPlayState');
   el.btnCatPicker   = document.getElementById('btnCatPicker');
   el.catModal       = document.getElementById('catModal');
   el.catChoices     = document.getElementById('catChoices');
@@ -304,6 +263,78 @@ function poseByHour(hour) {
   return 'night';
 }
 
+/* ---------------------------------------------------------
+   なにも していない ときの ポーズ
+
+   ずっと 同じ かっこう だと さみしいので、ねこの きもち（ゲージ）に
+   あわせて いくつかの ポーズを ゆっくり じゅんばんに きりかえる。
+   --------------------------------------------------------- */
+var IDLE_POSES = {
+  /* おなかも あそびも まんタン ＝ まんぞくして ねている */
+  satisfied: ['night', 'night', 'idle', 'night'],
+  /* あそびたい ＝ あそびの おさそい */
+  wantPlay:  ['noon', 'noon', 'thinking', 'noon'],
+  /* おなかが すいた ＝ 手を あげて おねだり */
+  wantFood:  ['welcome', 'idle', 'thinking', 'welcome'],
+  /* よる ＝ ねむっている */
+  night:     ['night', 'night', 'idle'],
+  /* ふつう ＝ おすわり、かんがえる、あくび、あそびの さそい */
+  normal:    ['idle', 'thinking', 'idle', 'morning', 'idle', 'noon']
+};
+
+var IDLE_MESSAGES = {
+  satisfied: 'おなかも こころも いっぱい… すーすー',
+  wantPlay:  'あそんで ほしいニャー',
+  wantFood:  'おなかが すいたニャー'
+};
+
+var IDLE_INTERVAL = 7000;      /* 7びょうごとに つぎの ポーズへ */
+var idleIndex = 0;
+var idleKindNow = '';
+
+/** いまの ねこの きもち（どの ポーズの グループを つかうか） */
+function idleKind() {
+  if (meterIsFull('food') && meterIsFull('play')) { return 'satisfied'; }
+  if (state.play <= 0 && state.food <= 0) { return 'wantPlay'; }   /* あそびの ほうを 先に */
+  if (state.play <= 0) { return 'wantPlay'; }
+  if (state.food <= 0) { return 'wantFood'; }
+  if (poseByHour(new Date().getHours()) === 'night') { return 'night'; }
+  return 'normal';
+}
+
+/** ふだんの ポーズを きめる */
+function updateBasePose() {
+  var kind = idleKind();
+  if (kind !== idleKindNow) {
+    idleKindNow = kind;
+    idleIndex = 0;
+  }
+  var list = IDLE_POSES[kind];
+  basePose = list[idleIndex % list.length];
+}
+
+/** ねこの きもちが かわった ことを ことばでも つたえる */
+function announceIdleKind() {
+  var message = (idleKindNow === 'wantPlay' || idleKindNow === 'wantFood')
+    ? requestMessage()
+    : IDLE_MESSAGES[idleKindNow];
+  if (message && el.quizModal.hidden && el.catModal.hidden) {
+    setMessage(message);
+  }
+}
+
+/** なにも していない ときに、つぎの ポーズへ すすめる */
+function stepIdlePose() {
+  if (!el.quizModal.hidden || !el.catModal.hidden) { return; }  /* がめんを ひらいて いる */
+  if (poseTimer) { return; }                                    /* アクションの ポーズを みせて いる */
+
+  var before = idleKindNow;
+  idleIndex++;
+  updateBasePose();
+  if (idleKindNow !== before) { idleIndex = 0; updateBasePose(); }
+  setPose(basePose, 0);
+}
+
 /** はじめの あいさつ（ひさしぶりでも ポジティブに むかえる） */
 function showGreeting() {
   var hour = new Date().getHours();
@@ -312,8 +343,7 @@ function showGreeting() {
   var away = Date.now() - state.lastVisit;
   var longTime = (state.lastVisit > 0 && away > 6 * 60 * 60 * 1000);
 
-  /* よるは ねむっている すがたを ふだんの ポーズに する */
-  basePose = (timePose === 'night') ? 'night' : 'idle';
+  updateBasePose();
 
   if (longTime) {
     setMessage('まってたニャ！' + greet);
@@ -490,6 +520,101 @@ function closeCatPicker() {
 }
 
 /* ---------------------------------------------------------
+   おなかと あそびの ゲージ
+      ・アクションで ふえて、まんタンに なると そのアクションは おやすみ
+      ・じかんが たつと へっていき、0に なると ねこが おねがいしてくる
+      ・あそびの ゲージの ほうが はやく へる
+   --------------------------------------------------------- */
+var METER_MAX      = 100;
+var FOOD_PER_QUIZ  = 25;    // クイズ 4かい せいかいで まんタン
+var PLAY_PER_PET   = 12;    // なでる 9かいで まんタン
+var FOOD_MINUTES   = 360;   // まんタンから 0に なるまで 6じかん
+var PLAY_MINUTES   = 180;   // あそびは 3じかんで 0（ごはんの 2ばい はやい）
+var lastTick = 0;
+
+function meterIsFull(name) {
+  return state[name] >= METER_MAX - 0.001;
+}
+
+/** じかんの ぶんだけ ゲージを へらす */
+function decayMeters(minutes) {
+  if (!(minutes > 0)) { return; }
+  state.food = Math.max(0, state.food - minutes * METER_MAX / FOOD_MINUTES);
+  state.play = Math.max(0, state.play - minutes * METER_MAX / PLAY_MINUTES);
+}
+
+/** ゲージを ふやす（まんタンより 上には いかない） */
+function addMeter(name, amount) {
+  var before = idleKindNow;
+  state[name] = Math.min(METER_MAX, state[name] + amount);
+  renderMeters();
+  updateBasePose();
+  /* まんぞくした ときは、ことばと ねている すがたで つたえる（すこし あとで） */
+  if (idleKindNow === 'satisfied' && before !== 'satisfied') {
+    window.setTimeout(function () {
+      if (idleKindNow !== 'satisfied') { return; }
+      announceIdleKind();
+      if (!poseTimer) { setPose(basePose, 0); }
+    }, 2800);
+  }
+  saveGame();
+}
+
+/** ゲージと ボタンの みためを こうしん */
+function renderMeters() {
+  [['food', 'おなか'], ['play', 'あそび']].forEach(function (pair) {
+    var name = pair[0];
+    var key = (name === 'food') ? 'Food' : 'Play';
+    var value = state[name];
+    el['meter' + key + 'Fill'].style.width = Math.round(value) + '%';
+    el['meter' + key].classList.toggle('is-full', meterIsFull(name));
+    var word = '';
+    if (meterIsFull(name)) {
+      word = 'いっぱい';
+    } else if (value <= 0) {
+      word = (name === 'food') ? 'ぺこぺこ' : 'あそびたい';
+    }
+    el['meter' + key + 'State'].textContent = word ? '（' + word + '）' : '';
+  });
+
+  /* まんタンの あいだは ボタンを やすみの いろに する。
+     おしても だいじょうぶで、ねこが「いっぱいだニャ」と こたえる ので、
+     aria-disabled（おしても なにも おきない）には しない。 */
+  el.btnFeed.classList.toggle('is-resting', meterIsFull('food'));
+  el.btnPet.classList.toggle('is-resting', meterIsFull('play'));
+}
+
+/** ゲージが 0の ときの おねがいの ことば（0が なければ から） */
+function requestMessage() {
+  if (state.food <= 0 && state.play <= 0) {
+    return 'おなかが すいたニャー。あそんで ほしいニャー';
+  }
+  if (state.food <= 0) { return 'おなかが すいたニャー'; }
+  if (state.play <= 0) { return 'あそんで ほしいニャー'; }
+  return '';
+}
+
+/** 1ぷんごとに ゲージを へらし、0に なった ときは おねがいする */
+function tick() {
+  var now = Date.now();
+  var minutes = (now - lastTick) / 60000;
+  lastTick = now;
+
+  var beforeFood = state.food;
+  var beforePlay = state.play;
+  decayMeters(minutes);
+  renderMeters();
+  updateBasePose();
+
+  var justEmpty = (beforeFood > 0 && state.food <= 0) || (beforePlay > 0 && state.play <= 0);
+  if (justEmpty) {
+    announceIdleKind();
+    if (!poseTimer) { setPose(basePose, 0); }
+    saveGame();
+  }
+}
+
+/* ---------------------------------------------------------
    9. なかよし度を ふやす（アイテムの おしらせも する）
    --------------------------------------------------------- */
 function addFriendship(amount, messageWhenNoUnlock) {
@@ -528,11 +653,19 @@ var PET_MESSAGES = [
 var petCount = 0;
 
 function onPet() {
+  /* あそびの ゲージが まんタンの ときは、やすませて あげる */
+  if (meterIsFull('play')) {
+    setMessage('たくさん あそんだニャ。すこし やすむニャ');
+    setPose('night', 2600);
+    return;
+  }
+
   popEffects('❤️', 3);
   animateCat('is-happy', 1300);
   setPose('happy', 2200);
   setMessage(PET_MESSAGES[petCount % PET_MESSAGES.length]);
   petCount++;
+  addMeter('play', PLAY_PER_PET);
   addFriendship(1, null);
 }
 
@@ -542,32 +675,60 @@ function onPet() {
 var currentQuiz = null;
 var quizAnswered = false;
 
-/** じゅんばんを シャッフルした クイズの まちぎょうれつを つくる */
-function refillQuizQueue() {
-  var numbers = [];
-  var i;
-  for (i = 0; i < QUIZZES.length; i++) { numbers.push(i); }
-  for (i = numbers.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = numbers[i];
-    numbers[i] = numbers[j];
-    numbers[j] = tmp;
+/**
+ * さいきん だしていない もんだいの ばんごうを えらぶ。
+ * @param {number} total もんだいの ぜんぶの かず
+ * @param {Array}  seen  さいきん だした ばんごう（この なかから えらばない）
+ * @param {number} keep  おぼえておく かず
+ */
+function pickIndex(total, seen, keep) {
+  var index = 0;
+  for (var tries = 0; tries < 50; tries++) {
+    index = Math.floor(Math.random() * total);
+    if (seen.indexOf(index) === -1) { break; }
   }
-  state.quizQueue = numbers;
+  seen.push(index);
+  while (seen.length > keep) { seen.shift(); }
+  return index;
 }
 
+/** つぎの もんだいを つくる（ことばの あなうめ か かげあて） */
 function nextQuiz() {
-  if (!state.quizQueue || state.quizQueue.length === 0) { refillQuizQueue(); }
-  var index = state.quizQueue.shift();
+  var useSilhouette = (kotobaPool.length === 0) ||
+                      (Math.random() < 1 / SILHOUETTE_ONE_IN);
+
+  if (useSilhouette) {
+    var s = SILHOUETTES[pickIndex(SILHOUETTES.length, state.silhouetteSeen, 4)];
+    saveGame();
+    return {
+      kind: 'silhouette',
+      label: 'かげあて',
+      cell: s.cell,
+      emoji: s.emoji,
+      text: s.question,
+      choices: s.choices,
+      answer: s.choices[0],      /* データの 1ばんめが せいかい。ならびは あとで まぜる */
+      yomi: '',
+      imi: ''
+    };
+  }
+
+  var k = kotobaPool[pickIndex(kotobaPool.length, state.kotobaSeen, 40)];
   saveGame();
-  return QUIZZES[index];
+  return {
+    kind: 'kotoba',
+    label: KOTOBA_LABEL[k.t] || 'ことば',
+    text: k.q,
+    choices: k.c,
+    answer: k.a,
+    yomi: k.yomi || '',
+    imi: k.imi || ''
+  };
 }
 
 /** せんたくしの じゅんばんを ばらばらに する（せいかいが いつも 上に こない ように） */
 function shuffledChoices(quiz) {
-  var list = quiz.choices.map(function (label, i) {
-    return { label: label, correct: (i === quiz.answer) };
-  });
+  var list = quiz.choices.slice();
   for (var i = list.length - 1; i > 0; i--) {
     var j = Math.floor(Math.random() * (i + 1));
     var tmp = list[i];
@@ -577,15 +738,46 @@ function shuffledChoices(quiz) {
   return list;
 }
 
+/**
+ * もんだい文を かく。
+ * ことばの もんだいは "_" の ところを あなに する。
+ * @param {string} filled せいかいの あと、あなに いれる ことば（まだの ときは null）
+ */
+function renderQuestion(quiz, filled) {
+  el.quizQuestion.textContent = '';
+  el.quizQuestion.className = 'quiz__question' +
+    (quiz.kind === 'kotoba' ? ' quiz__question--word' : '');
+
+  if (quiz.kind !== 'kotoba') {
+    el.quizQuestion.textContent = quiz.text;
+    return;
+  }
+
+  var parts = quiz.text.split('_');
+  el.quizQuestion.appendChild(document.createTextNode(parts[0]));
+
+  var blank = document.createElement('span');
+  blank.className = 'quiz__blank' + (filled ? ' is-filled' : '');
+  blank.textContent = filled || '？';
+  el.quizQuestion.appendChild(blank);
+
+  if (parts.length > 1) {
+    el.quizQuestion.appendChild(document.createTextNode(parts.slice(1).join('_')));
+  }
+}
+
 function openQuiz() {
   currentQuiz = nextQuiz();
   quizAnswered = false;
 
   el.quizResult.textContent = '';
   el.quizResult.className = 'quiz__result';
-  el.quizQuestion.textContent = currentQuiz.question;
+  el.quizKind.textContent = currentQuiz.label;
+  el.quizAnswer.hidden = true;
+  el.quizChoices.hidden = false;
+  el.btnCloseQuizText.textContent = 'とじる';
 
-  if (currentQuiz.type === 'silhouette') {
+  if (currentQuiz.kind === 'silhouette') {
     el.quizSilhouette.style.backgroundPosition =
       (currentQuiz.cell[1] * 50) + '% ' + (currentQuiz.cell[0] * 50) + '%';
     el.quizSilhouetteEmoji.textContent = currentQuiz.emoji;
@@ -596,13 +788,18 @@ function openQuiz() {
     el.quizSilhouette.classList.remove('is-shadow');
   }
 
+  renderQuestion(currentQuiz, null);
+
+  /* せんたくしが 4つの ときは 2れつに ならべる（画面から あふれない ように） */
+  el.quizChoices.className = 'quiz__choices' +
+    (currentQuiz.choices.length > 3 ? ' quiz__choices--grid' : '');
   el.quizChoices.textContent = '';
-  shuffledChoices(currentQuiz).forEach(function (choice) {
+  shuffledChoices(currentQuiz).forEach(function (label) {
     var button = document.createElement('button');
     button.type = 'button';
     button.className = 'choice';
-    button.textContent = choice.label;
-    button.addEventListener('click', function () { onChoice(button, choice.correct); });
+    button.textContent = label;
+    button.addEventListener('click', function () { onChoice(button, label); });
     el.quizChoices.appendChild(button);
   });
 
@@ -611,49 +808,73 @@ function openQuiz() {
   setPose('thinking', 0);          /* こたえを まっている あいだは かんがえる かお */
 }
 
+/** クイズを とじる。せいかいして いたら ごはんの ごほうび */
 function closeQuiz() {
+  var answered = quizAnswered;
   el.quizModal.hidden = true;
   currentQuiz = null;
-  if (!quizAnswered) { setPose(basePose, 0); }   /* とちゅうで とじた ときは もとに もどす */
-}
+  quizAnswered = false;
 
-function onChoice(button, isCorrect) {
-  if (!currentQuiz || quizAnswered) { return; }
-
-  /* ―― せいかい ―― */
-  if (isCorrect) {
-    quizAnswered = true;
-
-    button.classList.add('is-correct');
-    el.quizResult.textContent = '大正解！';
-    el.quizResult.className = 'quiz__result is-ok';
-
-    /* かげあての ときは いろを みせて あげる */
-    el.quizSilhouette.classList.remove('is-shadow');
-
-    /* ほかの ボタンは おせなくする（まちがいを ふやさない） */
-    var buttons = el.quizChoices.querySelectorAll('.choice');
-    for (var i = 0; i < buttons.length; i++) { buttons[i].disabled = true; }
-
-    showBigNews('大正解！', 1800);
-
-    window.setTimeout(function () {
-      closeQuiz();
-      popEffects('🍚', 3);
-      animateCat('is-eating', 1800);
-      setPose('eating', 3400);
-      setMessage('モグモグ… おいしいニャ！ありがとうニャ！');
-      addFriendship(3, null);
-      window.setTimeout(function () { popEffects('❤️', 2); }, 900);
-    }, 1500);
-
+  if (!answered) {
+    setPose(basePose, 0);          /* とちゅうで とじた ときは もとに もどす */
     return;
   }
 
+  popEffects('🍚', 3);
+  animateCat('is-eating', 1800);
+  setPose('eating', 3400);
+  setMessage('モグモグ… おいしいニャ！ありがとうニャ！');
+  addMeter('food', FOOD_PER_QUIZ);
+  addFriendship(3, null);
+  window.setTimeout(function () { popEffects('❤️', 2); }, 900);
+}
+
+function onChoice(button, label) {
+  if (!currentQuiz || quizAnswered) { return; }
+
   /* ―― ふせいかい（ペナルティ なし・なんどでも どうぞ） ―― */
-  button.classList.add('is-wrong');
-  el.quizResult.textContent = 'おしい！もういっかい！';
-  el.quizResult.className = 'quiz__result is-ng';
+  if (label !== currentQuiz.answer) {
+    button.classList.add('is-wrong');
+    button.disabled = true;
+    el.quizResult.textContent = 'おしい！もういっかい！';
+    el.quizResult.className = 'quiz__result is-ng';
+    return;
+  }
+
+  /* ―― せいかい ―― */
+  quizAnswered = true;
+  button.classList.add('is-correct');
+
+  var buttons = el.quizChoices.querySelectorAll('.choice');
+  for (var i = 0; i < buttons.length; i++) { buttons[i].disabled = true; }
+
+  el.quizResult.textContent = '大正解！';
+  el.quizResult.className = 'quiz__result is-ok';
+  showBigNews('大正解！', 1800);
+
+  /* こたえを あなに いれ、かげあては いろを みせる */
+  renderQuestion(currentQuiz, currentQuiz.answer);
+  el.quizSilhouette.classList.remove('is-shadow');
+
+  /* よみと いみを みせる。じかんせいげんは ないので ゆっくり よめる */
+  el.quizChoices.hidden = true;
+  el.quizYomi.textContent = currentQuiz.yomi ? '（' + currentQuiz.yomi + '）'
+                                             : 'こたえは 「' + currentQuiz.answer + '」';
+  el.quizImi.textContent = currentQuiz.imi;
+  el.quizAnswer.hidden = false;
+
+  /* ごほうびは ボタンを おした ときに わたす */
+  el.btnCloseQuizText.textContent = 'ごはんを あげる';
+}
+
+/** 「ごはんを あげる」ボタン（おなかが いっぱいの ときは やすませる） */
+function onFeed() {
+  if (meterIsFull('food')) {
+    setMessage('おなかは いっぱいだニャ。ごちそうさまニャ');
+    setPose('idle', 2600);
+    return;
+  }
+  openQuiz();
 }
 
 /* ---------------------------------------------------------
@@ -666,20 +887,47 @@ function init() {
   /* はじめて あそぶ ときだけ、ねこを えらぶ がめんを だす */
   var firstTime = !findPattern(state.catPattern);
 
+  /* あそんで いなかった あいだの ぶん、ゲージを へらす */
+  if (state.lastVisit > 0) {
+    decayMeters((Date.now() - state.lastVisit) / 60000);
+  }
+  lastTick = Date.now();
+
   renderStatus();
+  renderMeters();
   buildRoomItems();
   renderRoomItems();
   enableRoomImages();
+  updateBasePose();
   setPose(basePose, 0);
   applyCatPattern(firstTime ? DEFAULT_CAT : state.catPattern, false);
   showGreeting();
   saveGame();
 
   el.btnPet.addEventListener('click', onPet);
-  el.btnFeed.addEventListener('click', openQuiz);
+  el.btnFeed.addEventListener('click', onFeed);
   el.btnCloseQuiz.addEventListener('click', closeQuiz);
   el.btnCatPicker.addEventListener('click', openCatPicker);
   el.btnCloseCat.addEventListener('click', closeCatPicker);
+
+  /* なにも していない ときの ポーズを ゆっくり きりかえる */
+  window.setInterval(stepIdlePose, IDLE_INTERVAL);
+
+  /* 1ぷんごとに ゲージを へらす。ほかの がめんから もどった ときも すぐ こうしん */
+  window.setInterval(tick, 60000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { tick(); }
+  });
+
+  /* あいさつの あとで、おねがいが あれば つたえる */
+  if (requestMessage()) {
+    window.setTimeout(function () {
+      if (el.quizModal.hidden && el.catModal.hidden && requestMessage()) {
+        setMessage(requestMessage());
+        setPose(basePose, 0);
+      }
+    }, 4500);
+  }
 
   if (firstTime) { openCatPicker(); }
 
