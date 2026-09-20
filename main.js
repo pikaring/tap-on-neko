@@ -19,6 +19,7 @@ function defaultSave() {
     food: 0,            // おなかの ゲージ（0〜100）
     play: 0,            // あそびの ゲージ（0〜100）
     kotobaSeen: [],     // さいきん だした ことばの もんだい
+    kanjiSeen: [],      // さいきん だした かんじの もんだい
     silhouetteSeen: [], // さいきん だした かげあての もんだい
     catPattern: ''      // えらんだ ねこの がら（はじめては から）
   };
@@ -47,7 +48,7 @@ function loadSave() {
         save[key] = Math.min(METER_MAX, Math.max(0, data[key]));
       }
     });
-    ['kotobaSeen', 'silhouetteSeen'].forEach(function (key) {
+    ['kotobaSeen', 'kanjiSeen', 'silhouetteSeen'].forEach(function (key) {
       if (Array.isArray(data[key])) {
         save[key] = data[key].filter(function (n) { return typeof n === 'number' && n >= 0; });
       }
@@ -77,9 +78,10 @@ function saveGame() {
 var KOTOBA = (typeof QUESTIONS !== 'undefined' && Array.isArray(QUESTIONS)) ? QUESTIONS : [];
 
 /* つかう もんだいの しゅるい。
-   y=四字熟語 / k=ことわざ / i=慣用句（どれも あなうめ）
-   d=難読漢字 は あなうめでは ないので つかわない（くわえたい ときは 'd' を たす） */
+   ごはん（あなうめ）… y=四字熟語 / k=ことわざ / i=慣用句
+   あそび（よみ）  … d=難読漢字 */
 var KOTOBA_TYPES = ['y', 'k', 'i'];
+var KANJI_TYPES  = ['d'];
 
 var KOTOBA_LABEL = {
   y: 'よじじゅくご',
@@ -88,9 +90,14 @@ var KOTOBA_LABEL = {
   d: 'かんじの よみ'
 };
 
-var kotobaPool = KOTOBA.filter(function (q) {
-  return q && typeof q.q === 'string' && Array.isArray(q.c) && KOTOBA_TYPES.indexOf(q.t) !== -1;
-});
+function poolOf(types) {
+  return KOTOBA.filter(function (q) {
+    return q && typeof q.q === 'string' && Array.isArray(q.c) && types.indexOf(q.t) !== -1;
+  });
+}
+
+var kotobaPool = poolOf(KOTOBA_TYPES);   /* ごはんの クイズ（あなうめ 200もん） */
+var kanjiPool  = poolOf(KANJI_TYPES);    /* あそびの クイズ（難読漢字 100もん） */
 
 /* かげあて（cell は images/animals.png の [たて, よこ]） */
 var SILHOUETTES = [
@@ -117,7 +124,7 @@ var SILHOUETTE_ONE_IN = 4;
    ない がらでは、1まいめの ポーズだけで ゆっくり きりかえる。 */
 var CAT_PATTERNS = [
   { id: 'cat-kijitora',  name: 'きじとら', relax: true },
-  { id: 'cat-chashiro',  name: 'ちゃしろ', relax: false },
+  { id: 'cat-chashiro',  name: 'ちゃしろ', relax: true },
   { id: 'cat-kuro',      name: 'くろねこ', relax: true },
   { id: 'cat-hachiware', name: 'はちわれ', relax: true }
 ];
@@ -180,6 +187,7 @@ function cacheElements() {
   el.btnCloseQuiz   = document.getElementById('btnCloseQuiz');
   el.btnCloseQuizText = document.getElementById('btnCloseQuizText');
   el.quizKind       = document.getElementById('quizKind');
+  el.quizTitle      = document.getElementById('quizTitle');
   el.quizAnswer     = document.getElementById('quizAnswer');
   el.quizYomi       = document.getElementById('quizYomi');
   el.quizImi        = document.getElementById('quizImi');
@@ -575,8 +583,8 @@ function closeCatPicker() {
       ・あそびの ゲージの ほうが はやく へる
    --------------------------------------------------------- */
 var METER_MAX      = 100;
-var FOOD_PER_QUIZ  = 25;    // クイズ 4かい せいかいで まんタン
-var PLAY_PER_PET   = 12;    // なでる 9かいで まんタン
+var FOOD_PER_QUIZ  = 25;    // ごはんの クイズ 4かい せいかいで まんタン
+var PLAY_PER_QUIZ  = 25;    // あそびの クイズ 4かい せいかいで まんタン
 var FOOD_MINUTES   = 360;   // まんタンから 0に なるまで 6じかん
 var PLAY_MINUTES   = 180;   // あそびは 3じかんで 0（ごはんの 2ばい はやい）
 var lastTick = 0;
@@ -701,21 +709,27 @@ var PET_MESSAGES = [
 ];
 var petCount = 0;
 
+/**
+ * ねこを タップした ときの なでる うごき。
+ * いつでも できて、ゲージや なかよし度は うごかない
+ * （ボタンを おさなくても ねこと ふれあえる ように する ため）。
+ */
 function onPet() {
-  /* あそびの ゲージが まんタンの ときは、やすませて あげる */
+  popEffects('❤️', 2);
+  animateCat('is-happy', 1300);
+  setPose('happy', 2000);
+  setMessage(PET_MESSAGES[petCount % PET_MESSAGES.length]);
+  petCount++;
+}
+
+/** 「あそぶ」ボタン（あそびの ゲージが いっぱいの ときは やすませる） */
+function onPlay() {
   if (meterIsFull('play')) {
     setMessage('たくさん あそんだニャ。すこし やすむニャ');
     setPose('night', 2600);
     return;
   }
-
-  popEffects('❤️', 3);
-  animateCat('is-happy', 1300);
-  setPose('happy', 2200);
-  setMessage(PET_MESSAGES[petCount % PET_MESSAGES.length]);
-  petCount++;
-  addMeter('play', PLAY_PER_PET);
-  addFriendship(1, null);
+  openQuiz('play');
 }
 
 /* ---------------------------------------------------------
@@ -723,6 +737,7 @@ function onPet() {
    --------------------------------------------------------- */
 var currentQuiz = null;
 var quizAnswered = false;
+var quizMode = 'food';     /* 'food' ＝ ごはん（あなうめ）／'play' ＝ あそび（かんじ） */
 
 /**
  * さいきん だしていない もんだいの ばんごうを えらぶ。
@@ -741,8 +756,26 @@ function pickIndex(total, seen, keep) {
   return index;
 }
 
-/** つぎの もんだいを つくる（ことばの あなうめ か かげあて） */
-function nextQuiz() {
+/**
+ * つぎの もんだいを つくる。
+ * @param {string} mode 'food' ＝ ことばの あなうめ・かげあて
+ *                      'play' ＝ 難読漢字の よみ
+ */
+function nextQuiz(mode) {
+  if (mode === 'play' && kanjiPool.length > 0) {
+    var kanji = kanjiPool[pickIndex(kanjiPool.length, state.kanjiSeen, 30)];
+    saveGame();
+    return {
+      kind: 'kanji',
+      label: 'かんじの よみ',
+      text: kanji.q,
+      choices: kanji.c,
+      answer: kanji.a,
+      yomi: '',
+      imi: kanji.imi || ''
+    };
+  }
+
   var useSilhouette = (kotobaPool.length === 0) ||
                       (Math.random() < 1 / SILHOUETTE_ONE_IN);
 
@@ -797,6 +830,20 @@ function renderQuestion(quiz, filled) {
   el.quizQuestion.className = 'quiz__question' +
     (quiz.kind === 'kotoba' ? ' quiz__question--word' : '');
 
+  /* 難読漢字は かんじを おおきく みせて、下に といかけを かく */
+  if (quiz.kind === 'kanji') {
+    var kanji = document.createElement('span');
+    kanji.className = 'quiz__kanji';
+    kanji.textContent = quiz.text;
+    el.quizQuestion.appendChild(kanji);
+
+    var ask = document.createElement('span');
+    ask.className = 'quiz__ask';
+    ask.textContent = 'これは なんと よむ？';
+    el.quizQuestion.appendChild(ask);
+    return;
+  }
+
   if (quiz.kind !== 'kotoba') {
     el.quizQuestion.textContent = quiz.text;
     return;
@@ -815,10 +862,12 @@ function renderQuestion(quiz, filled) {
   }
 }
 
-function openQuiz() {
-  currentQuiz = nextQuiz();
+function openQuiz(mode) {
+  quizMode = (mode === 'play') ? 'play' : 'food';
+  currentQuiz = nextQuiz(quizMode);
   quizAnswered = false;
 
+  el.quizTitle.textContent = (quizMode === 'play') ? 'あそびの クイズ' : 'ごはんの クイズ';
   el.quizResult.textContent = '';
   el.quizResult.className = 'quiz__result';
   el.quizKind.textContent = currentQuiz.label;
@@ -839,9 +888,7 @@ function openQuiz() {
 
   renderQuestion(currentQuiz, null);
 
-  /* せんたくしが 4つの ときは 2れつに ならべる（画面から あふれない ように） */
-  el.quizChoices.className = 'quiz__choices' +
-    (currentQuiz.choices.length > 3 ? ' quiz__choices--grid' : '');
+  el.quizChoices.className = 'quiz__choices';
   el.quizChoices.textContent = '';
   shuffledChoices(currentQuiz).forEach(function (label) {
     var button = document.createElement('button');
@@ -853,7 +900,7 @@ function openQuiz() {
   });
 
   el.quizModal.hidden = false;
-  setMessage('ごはんの クイズだニャ！');
+  setMessage((quizMode === 'play') ? 'あそびの クイズだニャ！' : 'ごはんの クイズだニャ！');
   setPose('thinking', 0);          /* こたえを まっている あいだは かんがえる かお */
 }
 
@@ -869,6 +916,18 @@ function closeQuiz() {
     return;
   }
 
+  /* ―― あそびの ごほうび：なでて もらって よろこぶ ―― */
+  if (quizMode === 'play') {
+    popEffects('❤️', 3);
+    animateCat('is-happy', 1300);
+    setPose('happy', 2600);
+    setMessage('ゴロゴロ…（たのしかったニャ！）');
+    addMeter('play', PLAY_PER_QUIZ);
+    addFriendship(2, null);
+    return;
+  }
+
+  /* ―― ごはんの ごほうび：モグモグ たべる ―― */
   popEffects('🍚', 3);
   animateCat('is-eating', 1800);
   setPose('eating', 3400);
@@ -907,13 +966,14 @@ function onChoice(button, label) {
 
   /* よみと いみを みせる。じかんせいげんは ないので ゆっくり よめる */
   el.quizChoices.hidden = true;
-  el.quizYomi.textContent = currentQuiz.yomi ? '（' + currentQuiz.yomi + '）'
-                                             : 'こたえは 「' + currentQuiz.answer + '」';
+  el.quizYomi.textContent = currentQuiz.yomi
+    ? '（' + currentQuiz.yomi + '）'
+    : 'こたえは 「' + currentQuiz.answer + '」';
   el.quizImi.textContent = currentQuiz.imi;
   el.quizAnswer.hidden = false;
 
   /* ごほうびは ボタンを おした ときに わたす */
-  el.btnCloseQuizText.textContent = 'ごはんを あげる';
+  el.btnCloseQuizText.textContent = (quizMode === 'play') ? 'なでる' : 'ごはんを あげる';
 }
 
 /** 「ごはんを あげる」ボタン（おなかが いっぱいの ときは やすませる） */
@@ -923,7 +983,7 @@ function onFeed() {
     setPose('idle', 2600);
     return;
   }
-  openQuiz();
+  openQuiz('food');
 }
 
 /* ---------------------------------------------------------
@@ -953,7 +1013,7 @@ function init() {
   showGreeting();
   saveGame();
 
-  el.btnPet.addEventListener('click', onPet);
+  el.btnPet.addEventListener('click', onPlay);
   el.btnFeed.addEventListener('click', onFeed);
   el.btnCloseQuiz.addEventListener('click', closeQuiz);
   el.btnCatPicker.addEventListener('click', openCatPicker);

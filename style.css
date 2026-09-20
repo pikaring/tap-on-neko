@@ -231,8 +231,8 @@ body {
 .room-button {
   position: absolute;
   top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 10px;                       /* ねこの あたまと かさならない ように 右上へ */
+  white-space: nowrap;               /* 2ぎょうに おりかえさない */
   z-index: 3;
   min-height: 56px;                  /* タップ領域は 48px 以上 */
   padding: 6px 20px;
@@ -252,7 +252,7 @@ body {
 }
 
 .room-button:active {
-  transform: translateX(-50%) translateY(3px);
+  transform: translateY(3px);
   box-shadow: 0 1px 0 rgba(0, 0, 0, .2);
 }
 
@@ -266,7 +266,7 @@ body {
   left: 50%;
   bottom: 8%;
   transform: translateX(-50%);
-  width: min(58vw, 313px);
+  width: min(60vw, 320px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -407,7 +407,12 @@ body {
   background: #7b8590;
   border-color: rgba(0, 0, 0, .2);
 }
-.btn--close { background: var(--c-close); width: 100%; min-height: 88px; }
+.btn--close {
+  background: var(--c-close);
+  width: 100%;
+  min-height: 88px;
+  font-size: clamp(26px, 6.4vw, 32px);   /* 画面が おおきい ときに のびすぎない ように */
+}
 
 /* ========== クイズの がめん ========== */
 .modal {
@@ -426,7 +431,7 @@ body {
 .modal__panel {
   width: 100%;
   max-width: 620px;
-  max-height: 96dvh;
+  max-height: 98dvh;
   overflow-y: auto;
   background: var(--c-bg);
   border: 6px solid var(--c-header);
@@ -438,7 +443,7 @@ body {
 .modal__title {
   margin: 0 0 10px;
   text-align: center;
-  font-size: clamp(24px, 5.6vw, 34px);
+  font-size: clamp(24px, 5.6vw, 30px);
   background: var(--c-header);
   color: #ffffff;
   border-radius: 14px;
@@ -448,8 +453,8 @@ body {
 /* かげあての 絵。images/animals.png（3×3の どうぶつ9しゅるい）を つかう。
    画像が よみこめない ときは なかの 絵文字が そのまま でる。 */
 .quiz__silhouette {
-  width: clamp(160px, 44vw, 250px);
-  height: clamp(160px, 44vw, 250px);
+  width: clamp(104px, 30vw, 160px);
+  height: clamp(104px, 30vw, 160px);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -497,6 +502,19 @@ body {
   letter-spacing: .04em;
 }
 
+/* 難読漢字の もんだい（かんじを おおきく みせる） */
+.quiz__kanji {
+  display: block;
+  font-size: clamp(76px, 22vw, 130px);
+  line-height: 1.1;
+}
+
+.quiz__ask {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(20px, 5vw, 28px);
+}
+
 /* あなの ばしょ */
 .quiz__blank {
   display: inline-block;
@@ -510,20 +528,17 @@ body {
   border-bottom-color: var(--c-ok);
 }
 
+/* せんたくしは 2れつ。たて1れつだと 画面から あふれる ため。
+   3つの ときは、さいごの 1つを よこいっぱいに ひろげる。 */
 .quiz__choices {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
 .quiz__choices[hidden] { display: none; }
 
-/* 4つの ときは 2れつに ならべて、画面から あふれないように する */
-.quiz__choices--grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+.quiz__choices .choice:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* せいかいの あとに でる よみと いみ */
 .quiz__answer {
@@ -729,6 +744,20 @@ body {
 
   .room { min-height: 160px; }
 
+  /* クイズの がめんも つめる（スクロールなしで おさまる ように） */
+  .modal__panel { padding: 12px; }
+  .modal__title { padding: 6px; margin-bottom: 6px; }
+  .quiz__kind { margin-bottom: 2px; }
+  .quiz__kanji { font-size: clamp(54px, 16vw, 96px); }
+  .quiz__question { margin: 4px 0 8px; }
+  .quiz__silhouette { width: clamp(88px, 25vw, 150px); height: clamp(88px, 25vw, 150px); }
+  .quiz__choices { gap: 10px; }
+  .quiz__result { margin: 8px 0 10px; min-height: 1.3em; }
+  .quiz__answer { padding: 8px 12px; }
+  .choice { min-height: 74px; }
+  .cat-choice { min-height: 132px; }
+  .btn--close { min-height: 72px; }
+
   .actions { padding: 10px; gap: 10px; }
 
   .btn { min-height: 88px; }        /* 48px 以上は たもつ */
@@ -741,6 +770,13 @@ body {
   .cat-stage { width: min(34vw, 180px); }
 
   .status__value { font-size: clamp(30px, 7vw, 44px); }
+
+  .quiz__kanji { font-size: clamp(46px, 14vw, 80px); }
+  .quiz__silhouette { width: clamp(76px, 22vw, 130px); height: clamp(76px, 22vw, 130px); }
+  .choice { min-height: 66px; }
+  .btn--close { min-height: 64px; }
+  .cat-choice { min-height: 118px; }
+  .cat-choice__face { width: clamp(56px, 16vw, 80px); height: clamp(56px, 16vw, 80px); }
 }
 
 /* よこむきに した ときなど、うんと せの ひくい 画面。
@@ -793,6 +829,53 @@ body {
   }
 
   .btn__icon, .btn__sub { display: none; }
+
+  /* クイズ・ねこえらびの がめんも よこむき用に つめる */
+  .modal { padding: 6px; }
+  .modal__panel { padding: 8px; border-width: 4px; border-radius: 16px; }
+  .modal__title { font-size: 18px; padding: 4px; margin-bottom: 4px; }
+
+  .quiz__kind { font-size: 13px; margin-bottom: 2px; }
+  .quiz__question { font-size: 22px; margin: 4px 0 8px; }
+  .quiz__question--word { font-size: 26px; }
+  .quiz__kanji { font-size: 44px; }
+  .quiz__ask { font-size: 15px; }
+  .quiz__silhouette { width: 84px; height: 84px; }
+  .quiz__choices { gap: 6px; }
+  .choice { min-height: 52px; font-size: 18px; border-width: 3px; border-radius: 12px; }
+  .quiz__answer { padding: 6px 10px; border-width: 3px; }
+  .quiz__yomi { font-size: 15px; }
+  .quiz__imi { font-size: 14px; margin-top: 2px; }
+  .quiz__result { font-size: 18px; margin: 2px 0 4px; min-height: 1em; }
+
+  .cat-choice { min-height: 84px; font-size: 16px; gap: 2px; }
+  .cat-choice__face { width: 52px; height: 52px; }
+
+  .btn--close { min-height: 48px; font-size: 18px; }
+}
+
+/* よこむきで よこに ひろい ときは、クイズを 左右2れつに して
+   たての ながさを はんぶんに する（スクロールを させない ため）。 */
+@media (max-height: 480px) and (min-width: 560px) {
+  .quiz {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    column-gap: 14px;
+    align-items: center;
+  }
+
+  .quiz__kind       { grid-column: 1; grid-row: 1; margin: 0; }
+  .quiz__silhouette { grid-column: 1; grid-row: 2; width: 86px; height: 86px; }
+  .quiz__question   { grid-column: 1; grid-row: 3; margin: 2px 0 0; }
+  .quiz__choices    { grid-column: 2; grid-row: 1 / 4; align-content: center; }
+  .quiz__answer     { grid-column: 2; grid-row: 1 / 4; margin: 0; align-self: center; }
+  .quiz__result     { grid-column: 1 / -1; grid-row: 4; margin: 4px 0 6px; }
+
+  .quiz__kanji { font-size: 52px; }
+
+  /* ねこえらびも よこに ならべる */
+  .cat-choices { grid-template-columns: repeat(4, 1fr); }
+  .cat-choice { min-height: 96px; }
 }
 
 /* おおきい画面（たかさも ある とき）は ボタンに ゆとりを もたせる。

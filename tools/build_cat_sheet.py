@@ -49,8 +49,17 @@ def remove_background(path):
             out |= (np.abs(rgb - color).max(2) <= tolerance)
         return out
 
-    cand = near_bg(18)
-    white_bg = max(c.mean() for c in bg_colors) > 246
+    # 市松模様の マスと マスの あいだは、JPEGの にじみで 中間色に なる。
+    # その 中間色も 背景に ふくめないと、塗りつぶしが マスの あいだで とまり、
+    # 絵の まわりに 市松模様が 帯のように のこる。
+    bg_bright = [float(c.mean()) for c in bg_colors]
+    bg_sat = max(int(c.max() - c.min()) for c in bg_colors)
+    between = ((sat <= bg_sat + 12) &
+               (bright >= min(bg_bright) - 18) &
+               (bright <= max(bg_bright) + 18))
+
+    cand = near_bg(18) | between
+    white_bg = max(bg_bright) > 246
     print('  背景の色: ' + ' / '.join(str(tuple(int(v) for v in c)) for c in bg_colors)
           + (f'（純白をふくむ）' if white_bg else '（純白は絵として残す）'))
 
@@ -188,17 +197,29 @@ def main():
               f'{min(c["h"] for c in cells)}〜{max(c["h"] for c in cells)}px')
         sheets.append((out, sheet, cells))
 
-    # すべての絵に共通の縮尺（柄を入れ替えても大きさが変わらないように）
+    # 生成AIのゆらぎで、シートごとに絵の大きさがすこし違うことがある。
+    # まずセルの高さの中央値をシート間でそろえ、そのうえで
+    # すべてに共通の縮尺をかける（柄やシートを入れ替えても大きさが変わらない）。
+    medians = [float(np.median([c['h'] for c in cells])) for _, _, cells in sheets]
+    target = float(np.median(medians))
+    factors = [target / m for m in medians]
+    for (out, _, _), m, f in zip(sheets, medians, factors):
+        if abs(f - 1) > 0.02:
+            print(f'  {out}: 絵が {1 / f:.2f}倍の大きさで描かれているのでそろえる'
+                  f'（高さの中央値 {int(m)} → {int(target)}）')
+
     inner = CELL - 2 * PAD
-    scale = min(min(inner / c['w'], inner / c['h']) for _, _, cells in sheets for c in cells)
+    scale = min(min(inner / (c['w'] * f), inner / (c['h'] * f))
+                for (_, _, cells), f in zip(sheets, factors) for c in cells)
     print(f'共通の縮尺: {scale:.4f}（1マス {CELL}px / 余白 {PAD}px）')
 
-    for out, sheet, cells in sheets:
+    for (out, sheet, cells), factor in zip(sheets, factors):
+        sheet_scale = scale * factor
         src_im = Image.fromarray(sheet, 'RGBA')
         dst = Image.new('RGBA', (CELL * 3, CELL * 3), (0, 0, 0, 0))
         for cl in cells:
             cat = src_im.crop(cl['box'])
-            nw, nh = max(1, round(cl['w'] * scale)), max(1, round(cl['h'] * scale))
+            nw, nh = max(1, round(cl['w'] * sheet_scale)), max(1, round(cl['h'] * sheet_scale))
             cat = cat.resize((nw, nh), Image.LANCZOS)
             ox = cl['c'] * CELL + (CELL - nw) // 2        # 横は中央ぞろえ
             oy = cl['r'] * CELL + (CELL - PAD - nh)       # 縦は下ぞろえ（床に接地）
