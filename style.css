@@ -156,7 +156,7 @@ body {
 
 .room-item__emoji {
   display: block;
-  font-size: clamp(40px, 11vw, 72px);
+  font-size: clamp(48px, 13vw, 84px);
   line-height: 1;
 }
 
@@ -193,17 +193,32 @@ body {
   animation: breathe 3.2s ease-in-out infinite;
 }
 
-/* ねこを 画像に さしかえる ときは HTML の class に cat--image を たす
+/* ねこの 画像（images/cat.png）は 3×3 の 9ポーズが 1まいに なった スプライトシート。
+   よみこみに 成功した ときだけ main.js が この クラスを つける
+   （よみこめない ときは 絵文字の ままで あそべる）。 */
 .cat--image {
   width: 100%;
   aspect-ratio: 1 / 1;
   background-image: url("images/cat.png");
-  background-size: contain;
   background-repeat: no-repeat;
-  background-position: center;
+  background-size: 300% 300%;        /* 9マスのうち 1マスだけを みせる */
 }
+
 .cat--image .cat__emoji { display: none; }
-*/
+
+/* 9つの ポーズ（3×3 グリッドの きりだし位置） */
+.cat--image.is-pose-idle      { background-position:   0%   0%; }  /* おすわり */
+.cat--image.is-pose-happy     { background-position:  50%   0%; }  /* よろこぶ */
+.cat--image.is-pose-eating    { background-position: 100%   0%; }  /* たべる */
+.cat--image.is-pose-morning   { background-position:   0%  50%; }  /* あくび（あさ） */
+.cat--image.is-pose-noon      { background-position:  50%  50%; }  /* あそんで（ひる） */
+.cat--image.is-pose-night     { background-position: 100%  50%; }  /* ねむる（よる） */
+.cat--image.is-pose-welcome   { background-position:   0% 100%; }  /* おかえり */
+.cat--image.is-pose-celebrate { background-position:  50% 100%; }  /* バンザイ */
+.cat--image.is-pose-thinking  { background-position: 100% 100%; }  /* かんがえる */
+
+/* 画像の ねこは 足もとに よはくが あるので かげの いちを あわせる */
+.cat--image ~ .cat__shadow { width: 50%; margin-top: -8%; }
 
 .cat__emoji { display: block; }
 
@@ -226,8 +241,9 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 40%;
+  bottom: 30%;
   height: 0;
+  z-index: 2;              /* ハートや ごはんが ねこの まえに でるように */
   pointer-events: none;
 }
 
@@ -399,6 +415,12 @@ body {
 }
 
 .bignews[hidden] { display: none; }
+
+/* ねこの かおを かくさないよう、へやの かべの あたりに だす ときの いち */
+.bignews.is-top {
+  align-items: flex-start;
+  padding-top: 30dvh;
+}
 
 .bignews__text {
   margin: 0;

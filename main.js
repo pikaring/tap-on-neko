@@ -175,15 +175,30 @@ function greetingByHour(hour) {
   return 'こんばんはニャ。もう ねむいニャ';
 }
 
+/** じかんたいの ポーズ（あさ＝あくび／ひる＝あそんで／よる＝ねむる） */
+function poseByHour(hour) {
+  if (hour >= 5 && hour <= 10)  { return 'morning'; }
+  if (hour >= 11 && hour <= 16) { return 'noon'; }
+  return 'night';
+}
+
 /** はじめの あいさつ（ひさしぶりでも ポジティブに むかえる） */
 function showGreeting() {
-  var greet = greetingByHour(new Date().getHours());
+  var hour = new Date().getHours();
+  var greet = greetingByHour(hour);
+  var timePose = poseByHour(hour);
   var away = Date.now() - state.lastVisit;
   var longTime = (state.lastVisit > 0 && away > 6 * 60 * 60 * 1000);
+
+  /* よるは ねむっている すがたを ふだんの ポーズに する */
+  basePose = (timePose === 'night') ? 'night' : 'idle';
+
   if (longTime) {
     setMessage('まってたニャ！' + greet);
+    setPose('welcome', 4000);        /* おかえりの てふり */
   } else {
     setMessage(greet);
+    setPose(timePose, 6000);
   }
 }
 
@@ -198,7 +213,7 @@ function popEffects(emoji, count) {
         var span = document.createElement('span');
         span.className = 'effect';
         span.textContent = emoji;
-        span.style.marginLeft = (Math.random() * 140 - 70) + 'px';
+        span.style.marginLeft = (Math.random() * 200 - 100) + 'px';   /* ねこの かおに かぶらないよう 左右に ちらす */
         span.addEventListener('animationend', function () {
           if (span.parentNode) { span.parentNode.removeChild(span); }
         });
@@ -218,10 +233,49 @@ function animateCat(className, duration) {
   }, duration);
 }
 
+/* ねこの ポーズ（画像は 3×3 の 9マス。絵文字の ときは なにも おこらない） */
+var POSE_CLASSES = [
+  'is-pose-idle', 'is-pose-happy', 'is-pose-eating',
+  'is-pose-morning', 'is-pose-noon', 'is-pose-night',
+  'is-pose-welcome', 'is-pose-celebrate', 'is-pose-thinking'
+];
+var basePose = 'idle';     /* なにも していない ときの ポーズ */
+var poseTimer = null;
+
+/**
+ * ポーズを かえる。
+ * @param {string} name  idle / happy / eating / morning / noon / night /
+ *                       welcome / celebrate / thinking
+ * @param {number} holdMs 0 なら そのまま、それ以外は そのあと basePose に もどる
+ */
+function setPose(name, holdMs) {
+  if (poseTimer) { window.clearTimeout(poseTimer); poseTimer = null; }
+  POSE_CLASSES.forEach(function (cls) { el.cat.classList.remove(cls); });
+  el.cat.classList.add('is-pose-' + name);
+  if (holdMs > 0) {
+    poseTimer = window.setTimeout(function () { setPose(basePose, 0); }, holdMs);
+  }
+}
+
+/** 画像が よみこめたら 絵文字から さしかえる（しっぱいしても そのまま あそべる） */
+function enableCatImage() {
+  var img = new Image();
+  img.addEventListener('load', function () {
+    el.cat.classList.add('cat--image');
+  });
+  img.src = 'images/cat.png';
+}
+
 var bignewsTimer = null;
 
-function showBigNews(text, duration) {
+/**
+ * おおきな おしらせを だす。
+ * @param {boolean} atTop true なら へやの かべの あたりに だす
+ *                        （ねこの かおを かくさない ため）
+ */
+function showBigNews(text, duration, atTop) {
   el.bignewsText.textContent = text;
+  el.bignews.classList.toggle('is-top', atTop === true);
   el.bignews.hidden = false;
   if (bignewsTimer) { window.clearTimeout(bignewsTimer); }
   bignewsTimer = window.setTimeout(function () {
@@ -248,8 +302,9 @@ function addFriendship(amount, messageWhenNoUnlock) {
     var names = unlocked.map(function (u) { return u.name; }).join('と');
     window.setTimeout(function () {
       setMessage('やったニャ！' + names + 'が へやに ふえたニャ！');
-      showBigNews('やったね！', 1600);
+      showBigNews('やったね！', 1600, true);
       popEffects('✨', 4);
+      setPose('celebrate', 2800);
     }, 900);
   } else if (messageWhenNoUnlock) {
     setMessage(messageWhenNoUnlock);
@@ -269,6 +324,7 @@ var petCount = 0;
 function onPet() {
   popEffects('❤️', 3);
   animateCat('is-happy', 1300);
+  setPose('happy', 2200);
   setMessage(PET_MESSAGES[petCount % PET_MESSAGES.length]);
   petCount++;
   addFriendship(1, null);
@@ -331,11 +387,13 @@ function openQuiz() {
 
   el.quizModal.hidden = false;
   setMessage('ごはんの クイズだニャ！');
+  setPose('thinking', 0);          /* こたえを まっている あいだは かんがえる かお */
 }
 
 function closeQuiz() {
   el.quizModal.hidden = true;
   currentQuiz = null;
+  if (!quizAnswered) { setPose(basePose, 0); }   /* とちゅうで とじた ときは もとに もどす */
 }
 
 function onChoice(button, index) {
@@ -362,6 +420,7 @@ function onChoice(button, index) {
       closeQuiz();
       popEffects('🍚', 3);
       animateCat('is-eating', 1800);
+      setPose('eating', 3400);
       setMessage('モグモグ… おいしいニャ！ありがとうニャ！');
       addFriendship(3, null);
       window.setTimeout(function () { popEffects('❤️', 2); }, 900);
@@ -385,6 +444,8 @@ function init() {
 
   renderStatus();
   renderRoomItems();
+  setPose(basePose, 0);
+  enableCatImage();
   showGreeting();
   saveGame();
 

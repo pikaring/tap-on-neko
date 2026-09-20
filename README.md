@@ -37,7 +37,35 @@ npx http-server -p 8080
 ## GitHub Pages
 Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (root)`
 
-## 画像への差し替え
-猫・部屋は絵文字でモックしていますが、CSSクラスを分離してあります。
-`style.css` の `.cat--image` / `.room--image` のコメントを外し、`images/` に画像を置いて
-`index.html` の `class="cat"` を `class="cat cat--image"` にすれば差し替えできます。
+## 猫の画像（スプライトシート）
+
+`images/cat.png` は **3×3＝9ポーズを1枚にまとめたスプライトシート**（1020×1020px / 1セル340px）です。
+`main.js` が読み込みに成功したときだけ `.cat--image` クラスを付けるので、
+画像が無い・読めない環境では絵文字（🐈）のまま遊べます。
+
+セルとゲーム内の場面の対応（`style.css` の `.is-pose-*`）:
+
+| 位置 | ポーズ | クラス | 使う場面 |
+| --- | --- | --- | --- |
+| 上段 左 | おすわり | `is-pose-idle` | 通常 |
+| 上段 中央 | よろこぶ | `is-pose-happy` | 「なでる」 |
+| 上段 右 | ごはんを食べる | `is-pose-eating` | クイズ正解 |
+| 中段 左 | あくび | `is-pose-morning` | 朝 5:00–10:59 |
+| 中段 中央 | 遊びの誘い | `is-pose-noon` | 昼 11:00–16:59 |
+| 中段 右 | ねむる | `is-pose-night` | 夜 17:00–4:59（通常ポーズも これ） |
+| 下段 左 | 手を振る | `is-pose-welcome` | 6時間以上ぶりの起動 |
+| 下段 中央 | バンザイ | `is-pose-celebrate` | アイテム獲得 |
+| 下段 右 | 首をかしげる | `is-pose-thinking` | クイズ表示中 |
+
+### 画像を作り直すとき
+1. 生成AIに `docs/cat-sprite-prompt.md` のプロンプトを渡して、3×3の9ポーズを1枚で出力する
+2. `python3 tools/build_cat_sheet.py` に通す
+   （市松模様やベタ背景の除去 → 9セルを同じ縮尺・同じ接地位置に整列 → 透過PNG出力）
+3. `pngquant --quality=70-95 cat.png` などで軽量化して `images/cat.png` に置く
+
+ポーズを増やす場合は、グリッドの列数・行数に合わせて `style.css` の
+`background-size` と `background-position`、`main.js` の `POSE_CLASSES` を直してください。
+
+## 部屋の背景画像への差し替え
+`style.css` の `.room--image` のコメントを外し、`images/room.png` を置いて
+`index.html` の `class="room"` を `class="room room--image"` にすれば差し替えできます。
