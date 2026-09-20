@@ -29,27 +29,30 @@ def remove_background(path):
     bright = rgb.mean(2)
 
     # 背景の色は、画像の外周から実際に採取する。
-    # 市松模様は「灰色＋白」「灰色＋濃い灰色」など組み合わせが絵によって違うため、
-    # 決め打ちのしきい値ではなく、外周にある無彩色の明るさの範囲を背景とみなす。
+    # 市松模様は「灰色＋白」「うすいピンク＋白」など 絵に よって ちがうので、
+    # 明るさだけでなく 色そのものを おぼえて、それに 近い 画素を 背景とみなす。
     ring = np.concatenate([
-        bright[:3].ravel(), bright[-3:].ravel(),
-        bright[:, :3].ravel(), bright[:, -3:].ravel()])
-    ring_sat = np.concatenate([
-        sat[:3].ravel(), sat[-3:].ravel(),
-        sat[:, :3].ravel(), sat[:, -3:].ravel()])
-    neutral_ring = ring[ring_sat < 16]
-    if neutral_ring.size < ring.size * 0.3:
-        raise SystemExit(f'{path}: 外周が無彩色の背景ではありません（透過や白背景で出力してください）')
+        rgb[:3].reshape(-1, 3), rgb[-3:].reshape(-1, 3),
+        rgb[:, :3].reshape(-1, 3), rgb[:, -3:].reshape(-1, 3)])
 
-    # 明るさを4きざみにまとめ、外周の5%以上をしめる値を背景の色とみなす
-    levels, counts = np.unique((neutral_ring / 4).astype(int) * 4, return_counts=True)
-    bands = [int(v) for v, c in zip(levels, counts) if c > neutral_ring.size * 0.05]
-    lo, hi = min(bands) - 10, max(bands) + 10
-    white_bg = hi > 250          # 背景に 純白が ふくまれるか
+    # 8きざみに まとめて、外周の 5%以上を しめる 色を 背景の 色とする
+    keys, counts = np.unique((ring // 8), axis=0, return_counts=True)
+    bg_colors = [k * 8 + 4 for k, c in zip(keys, counts) if c > len(ring) * 0.05]
+    if not bg_colors:
+        raise SystemExit(f'{path}: 外周から 背景の色を 見つけられません'
+                         '（透過か、ベタの単色背景で 出力してください）')
 
-    cand = (sat < 16) & (bright >= lo) & (bright <= hi)
-    print(f'  背景の明るさ: {bands} → {lo}〜{hi} を背景とみなす'
-          f'（{"純白をふくむ" if white_bg else "純白は絵として残す"}）')
+    def near_bg(tolerance):
+        """背景の色から tolerance 以内の 画素"""
+        out = np.zeros((H, W), bool)
+        for color in bg_colors:
+            out |= (np.abs(rgb - color).max(2) <= tolerance)
+        return out
+
+    cand = near_bg(18)
+    white_bg = max(c.mean() for c in bg_colors) > 246
+    print('  背景の色: ' + ' / '.join(str(tuple(int(v) for v in c)) for c in bg_colors)
+          + (f'（純白をふくむ）' if white_bg else '（純白は絵として残す）'))
 
     bg = np.zeros((H, W), bool)
     dq = deque()
@@ -74,9 +77,9 @@ def remove_background(path):
         return out
 
     # JPEG圧縮でにじんだ輪郭まわりの灰色ハローを2px分だけ追加で除去
-    # 背景より すこし くらい ところまでを ハローとみなす。
-    # これ以上 下げると、細い線（しっぽの動き線など）まで けずれる。
-    halo = (sat < 26) & (bright > lo - 8)
+    # 背景の色に ちかい ところまでを ハローとみなす。
+    # ひろげすぎると 細い線（しっぽの動き線など）まで けずれる。
+    halo = near_bg(48)
     if not white_bg:
         halo &= bright < 250        # 絵のまわりの 白いフチは のこす
     for _ in range(2):
@@ -99,6 +102,43 @@ def remove_background(path):
         take = fill & (cnt > 0)
         out[take] = acc[take] / cnt[take][:, None]
         opaque |= take
+
+    # のこった 斑点（背景の けし残り）を とりのぞく。
+    # ・とても ちいさい かたまり
+    # ・色が 背景そのもの の かたまり（市松模様の 1マスぶん など）
+    # のどちらかを けす。絵の 細い線（しっぽの動き線など）は のこる。
+    opaque_mask = alpha > 40
+    visited = np.zeros((H, W), bool)
+    ys, xs = np.where(opaque_mask)
+    removed = 0
+    for sy, sx in zip(ys, xs):
+        if visited[sy, sx]:
+            continue
+        stack = [(sy, sx)]
+        visited[sy, sx] = True
+        blob = []
+        while stack:
+            y, x = stack.pop()
+            blob.append((y, x))
+            for ny, nx in ((y-1, x), (y+1, x), (y, x-1), (y, x+1)):
+                if 0 <= ny < H and 0 <= nx < W and opaque_mask[ny, nx] and not visited[ny, nx]:
+                    visited[ny, nx] = True
+                    stack.append((ny, nx))
+
+        points = np.array(blob)
+        mean_color = out[points[:, 0], points[:, 1]].mean(0)
+        distance = min(float(np.abs(mean_color - color).max()) for color in bg_colors)
+
+        tiny = len(blob) < 40
+        # 平均の 色が 背景に ちかい ちいさな かたまりは けし残り。
+        # 絵の 細い線（しっぽの動き線など）は こい色なので のこる。
+        bg_like = (len(blob) < 1200) and (distance <= 40)
+        if tiny or bg_like:
+            for y, x in blob:
+                alpha[y, x] = 0
+            removed += 1
+    if removed:
+        print(f'  けし残りの かたまりを {removed}こ とりのぞいた')
 
     # アルファを1pxだけぼかしてアンチエイリアスにする
     pad = np.pad(alpha, 1, mode='edge')

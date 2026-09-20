@@ -266,7 +266,7 @@ body {
   left: 50%;
   bottom: 8%;
   transform: translateX(-50%);
-  width: min(56vw, 300px);
+  width: min(58vw, 313px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -293,7 +293,7 @@ body {
 
 .cat--image .cat__emoji { display: none; }
 
-/* 9つの ポーズ（3×3 グリッドの きりだし位置） */
+/* 1まいめ（cat-*.png）の 9つの ポーズ ― おせわの ときの すがた */
 .cat--image.is-pose-idle      { background-position:   0%   0%; }  /* おすわり */
 .cat--image.is-pose-happy     { background-position:  50%   0%; }  /* よろこぶ */
 .cat--image.is-pose-eating    { background-position: 100%   0%; }  /* たべる */
@@ -303,6 +303,18 @@ body {
 .cat--image.is-pose-welcome   { background-position:   0% 100%; }  /* おかえり */
 .cat--image.is-pose-celebrate { background-position:  50% 100%; }  /* バンザイ */
 .cat--image.is-pose-thinking  { background-position: 100% 100%; }  /* かんがえる */
+
+/* 2まいめ（cat-*-relax.png）の 8つの ポーズ ― ひとりで いる ときの すがた。
+   よみこめた ときだけ main.js が --cat-image-relax を つける。
+   2まいめの ない がら（ちゃしろ）では この ポーズは つかわない。 */
+.cat--image.is-pose-belly     { background-image: var(--cat-image-relax); background-position:  50%   0%; }  /* おなかを みせて かまって */
+.cat--image.is-pose-groom     { background-image: var(--cat-image-relax); background-position: 100%   0%; }  /* けづくろい */
+.cat--image.is-pose-tail      { background-image: var(--cat-image-relax); background-position:   0%  50%; }  /* しっぽを おいかける */
+.cat--image.is-pose-loaf      { background-image: var(--cat-image-relax); background-position:  50%  50%; }  /* こうばこずわり */
+.cat--image.is-pose-stretch   { background-image: var(--cat-image-relax); background-position: 100%  50%; }  /* のびて ねそべる */
+.cat--image.is-pose-surprised { background-image: var(--cat-image-relax); background-position:   0% 100%; }  /* びっくり */
+.cat--image.is-pose-lookup    { background-image: var(--cat-image-relax); background-position:  50% 100%; }  /* 見上げる */
+.cat--image.is-pose-back      { background-image: var(--cat-image-relax); background-position: 100% 100%; }  /* うしろむき */
 
 /* 画像の ねこは 足もとに よはくが あるので かげの いちを あわせる */
 .cat--image ~ .cat__shadow { width: 50%; margin-top: -8%; }

@@ -113,11 +113,13 @@ var SILHOUETTE_ONE_IN = 4;
       どれも 同じ 9ポーズ・同じ おおきさ・同じ 立ち位置で 作って あるので、
       入れかえても 画面の みえ方は かわらない。
    --------------------------------------------------------- */
+/* relax: ひとりで いる ときの すがたの シート（cat-*-relax.png）が あるか。
+   ない がらでは、1まいめの ポーズだけで ゆっくり きりかえる。 */
 var CAT_PATTERNS = [
-  { id: 'cat-kijitora',  name: 'きじとら' },
-  { id: 'cat-chashiro',  name: 'ちゃしろ' },
-  { id: 'cat-kuro',      name: 'くろねこ' },
-  { id: 'cat-hachiware', name: 'はちわれ' }
+  { id: 'cat-kijitora',  name: 'きじとら', relax: true },
+  { id: 'cat-chashiro',  name: 'ちゃしろ', relax: false },
+  { id: 'cat-kuro',      name: 'くろねこ', relax: true },
+  { id: 'cat-hachiware', name: 'はちわれ', relax: true }
 ];
 var DEFAULT_CAT = 'cat-kijitora';
 var currentCat = DEFAULT_CAT;
@@ -269,17 +271,21 @@ function poseByHour(hour) {
    ずっと 同じ かっこう だと さみしいので、ねこの きもち（ゲージ）に
    あわせて いくつかの ポーズを ゆっくり じゅんばんに きりかえる。
    --------------------------------------------------------- */
+/* 2まいめの シートが ないと つかえない ポーズ */
+var RELAX_POSES = ['belly', 'groom', 'tail', 'loaf', 'stretch', 'surprised', 'lookup', 'back'];
+
 var IDLE_POSES = {
-  /* おなかも あそびも まんタン ＝ まんぞくして ねている */
-  satisfied: ['night', 'night', 'idle', 'night'],
-  /* あそびたい ＝ あそびの おさそい */
-  wantPlay:  ['noon', 'noon', 'thinking', 'noon'],
-  /* おなかが すいた ＝ 手を あげて おねだり */
-  wantFood:  ['welcome', 'idle', 'thinking', 'welcome'],
+  /* おなかも あそびも まんタン ＝ まんぞくして ねる・こうばこずわり */
+  satisfied: ['loaf', 'night', 'stretch', 'night', 'loaf', 'idle'],
+  /* あそびたい ＝ おなかを みせて かまって・あそびの おさそい */
+  wantPlay:  ['belly', 'noon', 'tail', 'belly', 'noon', 'thinking'],
+  /* おなかが すいた ＝ 手を あげて おねだり・見上げる */
+  wantFood:  ['welcome', 'lookup', 'idle', 'lookup', 'welcome', 'thinking'],
   /* よる ＝ ねむっている */
-  night:     ['night', 'night', 'idle'],
-  /* ふつう ＝ おすわり、かんがえる、あくび、あそびの さそい */
-  normal:    ['idle', 'thinking', 'idle', 'morning', 'idle', 'noon']
+  night:     ['night', 'loaf', 'night', 'stretch', 'night'],
+  /* ふつう ＝ いろいろ */
+  normal:    ['idle', 'groom', 'thinking', 'loaf', 'morning', 'back',
+              'idle', 'tail', 'noon', 'surprised', 'lookup']
 };
 
 var IDLE_MESSAGES = {
@@ -302,6 +308,11 @@ function idleKind() {
   return 'normal';
 }
 
+/** その ポーズが いま つかえるか（2まいめが ない がらでは つかわない） */
+function poseAvailable(name) {
+  return relaxReady || RELAX_POSES.indexOf(name) === -1;
+}
+
 /** ふだんの ポーズを きめる */
 function updateBasePose() {
   var kind = idleKind();
@@ -310,7 +321,16 @@ function updateBasePose() {
     idleIndex = 0;
   }
   var list = IDLE_POSES[kind];
-  basePose = list[idleIndex % list.length];
+
+  /* つかえない ポーズは とばして、つぎの つかえる ポーズを さがす */
+  for (var i = 0; i < list.length; i++) {
+    var candidate = list[(idleIndex + i) % list.length];
+    if (poseAvailable(candidate)) {
+      basePose = candidate;
+      return;
+    }
+  }
+  basePose = 'idle';
 }
 
 /** ねこの きもちが かわった ことを ことばでも つたえる */
@@ -385,14 +405,20 @@ function animateCat(className, duration) {
   }, duration);
 }
 
-/* ねこの ポーズ（画像は 3×3 の 9マス。絵文字の ときは なにも おこらない） */
-var POSE_CLASSES = [
-  'is-pose-idle', 'is-pose-happy', 'is-pose-eating',
-  'is-pose-morning', 'is-pose-noon', 'is-pose-night',
-  'is-pose-welcome', 'is-pose-celebrate', 'is-pose-thinking'
+/* ねこの ポーズ。
+   1まいめ（cat-*.png）＝おせわの ときの 9つ
+   2まいめ（cat-*-relax.png）＝ひとりで いる ときの 8つ
+   （絵文字で あそんで いる ときは なにも おこらない） */
+var POSE_NAMES = [
+  'idle', 'happy', 'eating', 'morning', 'noon', 'night',
+  'welcome', 'celebrate', 'thinking',
+  'belly', 'groom', 'tail', 'loaf', 'stretch', 'surprised', 'lookup', 'back'
 ];
+
+var POSE_CLASSES = POSE_NAMES.map(function (name) { return 'is-pose-' + name; });
 var basePose = 'idle';     /* なにも していない ときの ポーズ */
 var poseTimer = null;
+var relaxReady = false;    /* ひとりで いる ときの すがたの シートが つかえるか */
 
 /**
  * ポーズを かえる。
@@ -438,16 +464,39 @@ function enableRoomImages() {
  * @param {boolean} announce true なら あいさつの メッセージを だす
  */
 function applyCatPattern(id, announce) {
-  if (!findPattern(id)) { id = DEFAULT_CAT; }
+  var pattern = findPattern(id);
+  if (!pattern) {
+    id = DEFAULT_CAT;
+    pattern = findPattern(id);
+  }
   currentCat = id;
   state.catPattern = id;
   saveGame();
+
+  relaxReady = false;
+  el.cat.style.removeProperty('--cat-image-relax');
 
   var src = catImagePath(id);
   var img = new Image();
   img.addEventListener('load', function () {
     el.cat.style.setProperty('--cat-image', 'url("' + src + '")');
     el.cat.classList.add('cat--image');
+
+    /* ひとりで いる ときの すがたの シートは、1まいめの あとで よみこむ
+       （さいしょの ひょうじを はやく する ため）。ある がらだけ。 */
+    if (!pattern.relax) {
+      updateBasePose();
+      return;
+    }
+    var relaxSrc = 'images/' + id + '-relax.png';
+    var relaxImg = new Image();
+    relaxImg.addEventListener('load', function () {
+      if (currentCat !== id) { return; }        /* あいだに がらが かわった */
+      el.cat.style.setProperty('--cat-image-relax', 'url("' + relaxSrc + '")');
+      relaxReady = true;
+      updateBasePose();
+    });
+    relaxImg.src = relaxSrc;
   });
   img.src = src;
 
