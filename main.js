@@ -151,15 +151,15 @@ function catImagePath(id) {
    pos は へやの なかの おく位置（bottom が おおきいほど おく＝かべ側）。
    小物どうしの 大小は 画像側で つけてあるので、わくの おおきさは ぜんぶ 同じ。 */
 var UNLOCKS = [
-  { point:  10, name: 'ふかふかの クッション', emoji: '🛋️', cell: [0, 0], pos: { left:  '1%',  bottom: '15%' } },
-  { point:  30, name: 'まるい けいと',         emoji: '🧶', cell: [0, 1], pos: { right: '21%', bottom: '2%'  } },
-  { point:  50, name: 'きれいな おはな',       emoji: '🌷', cell: [0, 2], pos: { right: '2%',  bottom: '2%'  } },
-  { point:  80, name: 'おさかなの おやつ',     emoji: '🐟', cell: [1, 0], pos: { left:  '1%',  bottom: '2%'  } },
-  { point: 120, name: 'ねこ用の ベッド',       emoji: '🧺', cell: [1, 1], pos: { right: '2%',  bottom: '28%' } },
-  { point: 170, name: 'ねこじゃらし',          emoji: '🪶', cell: [1, 2], pos: { right: '2%',  bottom: '15%' } },
-  { point: 230, name: 'みずの おさら',         emoji: '💧', cell: [2, 0], pos: { left:  '20%', bottom: '2%'  } },
-  { point: 300, name: 'キャットタワー',        emoji: '🪑', cell: [2, 1], pos: { left:  '1%',  bottom: '28%' } },
-  { point: 400, name: 'おもちゃの ねずみ',     emoji: '🐭', cell: [2, 2], pos: { left:  '20%', bottom: '15%' } }
+  { point:   10, name: 'ふかふかの クッション', emoji: '🛋️', cell: [0, 0], pos: { left:  '1%',  bottom: '15%' } },
+  { point:   40, name: 'まるい けいと',         emoji: '🧶', cell: [0, 1], pos: { right: '21%', bottom: '2%'  } },
+  { point:   90, name: 'きれいな おはな',       emoji: '🌷', cell: [0, 2], pos: { right: '2%',  bottom: '2%'  } },
+  { point:  160, name: 'おさかなの おやつ',     emoji: '🐟', cell: [1, 0], pos: { left:  '1%',  bottom: '2%'  } },
+  { point:  260, name: 'ねこ用の ベッド',       emoji: '🧺', cell: [1, 1], pos: { right: '2%',  bottom: '28%' } },
+  { point:  400, name: 'ねこじゃらし',          emoji: '🪶', cell: [1, 2], pos: { right: '2%',  bottom: '15%' } },
+  { point:  600, name: 'みずの おさら',         emoji: '💧', cell: [2, 0], pos: { left:  '20%', bottom: '2%'  } },
+  { point:  850, name: 'キャットタワー',        emoji: '🪑', cell: [2, 1], pos: { left:  '1%',  bottom: '28%' } },
+  { point: 1200, name: 'おもちゃの ねずみ',     emoji: '🐭', cell: [2, 2], pos: { left:  '20%', bottom: '15%' } }
 ];
 
 /* ---------------------------------------------------------
