@@ -166,9 +166,10 @@ var QUIZZES = [
       入れかえても 画面の みえ方は かわらない。
    --------------------------------------------------------- */
 var CAT_PATTERNS = [
-  { id: 'cat-kijitora', name: 'きじとら' },
-  { id: 'cat-chashiro', name: 'ちゃしろ' },
-  { id: 'cat-kuro',     name: 'くろねこ' }
+  { id: 'cat-kijitora',  name: 'きじとら' },
+  { id: 'cat-chashiro',  name: 'ちゃしろ' },
+  { id: 'cat-kuro',      name: 'くろねこ' },
+  { id: 'cat-hachiware', name: 'はちわれ' }
 ];
 var DEFAULT_CAT = 'cat-kijitora';
 var currentCat = DEFAULT_CAT;

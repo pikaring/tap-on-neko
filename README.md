@@ -25,7 +25,7 @@
 2. 「ごはんを あげる（クイズ）」で3択クイズ（ことわざ6問＋かげあて9問）。正解すると「大正解！」で **+3**
 3. なかよし度 **10 / 30 / 50 / 80 / 120 / 170 / 230 / 300 / 400** で部屋に小物が増える（全9種）
 4. なかよし度は自動保存され、次に開いたときに引き継がれる
-5. 猫の柄は「ねこを かえる」からいつでも変更できる（きじとら／ちゃしろ／くろねこ）
+5. 猫の柄は「ねこを かえる」からいつでも変更できる（きじとら／ちゃしろ／くろねこ／はちわれ）
 
 ## 設計上の約束（高齢者向けの配慮）
 - 操作は**シングルタップのみ**。スワイプ・ドラッグ・長押しは使わない
@@ -49,26 +49,29 @@ Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (r
 ## 猫の画像（スプライトシート）
 
 猫の画像は **3×3＝9ポーズを1枚にまとめたスプライトシート**（1020×1020px / 1セル340px）で、
-柄が3種類あります。
+柄が4種類あります。
 
 | ファイル | 柄 |
 | --- | --- |
 | `images/cat-kijitora.png` | キジトラ ＝ 既定 |
 | `images/cat-chashiro.png` | 茶白（ちゃしろ） |
 | `images/cat-kuro.png` | くろねこ |
+| `images/cat-hachiware.png` | ハチワレ |
 
-3枚は**同じ縮尺・同じ立ち位置**に揃えてあるため（9セルすべて下端・横中心の差が0px）、
+4枚は**同じ縮尺（1.0233倍）・同じ立ち位置**に揃えてあるため（9セルすべて下端・横中心の差が0px）、
 入れ替えても表示位置は変わりません。
 
 遊ぶ人は**初回起動時の「どの ねこに する？」**と、部屋の上にある
 **「ねこを かえる」ボタン**でいつでも柄を選べます（選択は LocalStorage に保存）。
+選択画面は2列×2段のカードで、360×640pxの小さな端末でもスクロールなしに収まります。
 既定は `main.js` の `DEFAULT_CAT`、選べる柄は `CAT_PATTERNS` で定義しています。
 
 ```js
 var CAT_PATTERNS = [
-  { id: 'cat-kijitora', name: 'きじとら' },
-  { id: 'cat-chashiro', name: 'ちゃしろ' },
-  { id: 'cat-kuro',     name: 'くろねこ' }
+  { id: 'cat-kijitora',  name: 'きじとら' },
+  { id: 'cat-chashiro',  name: 'ちゃしろ' },
+  { id: 'cat-kuro',      name: 'くろねこ' },
+  { id: 'cat-hachiware', name: 'はちわれ' }
 ];
 var DEFAULT_CAT = 'cat-kijitora';
 ```
@@ -100,8 +103,12 @@ var DEFAULT_CAT = 'cat-kijitora';
 
    ```sh
    python3 tools/build_cat_sheet.py images \
-     chashiro.jpg:cat-chashiro kijitora.jpg:cat-kijitora kuro.jpg:cat-kuro
+     chashiro.jpg:cat-chashiro kijitora.jpg:cat-kijitora \
+     kuro.jpg:cat-kuro hachiware.jpg:cat-hachiware
    ```
+
+   共通の縮尺は渡した画像だけで計算されるため、**同時に渡すのは揃えたいもの同士だけ**にする
+   （猫と小物のように性質が違うものを一緒に渡すと、互いの縮尺に引っぱられる）
 3. `pngquant --quality=70-95 --output images/cat-xxx.png images/cat-xxx.png` で軽量化
 
 ポーズを増やす場合は、グリッドの列数・行数に合わせて `style.css` の

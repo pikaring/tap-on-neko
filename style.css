@@ -466,25 +466,30 @@ body {
 .quiz__result.is-ng { color: var(--c-ng); }
 
 /* ========== ねこを えらぶ がめん ========== */
+/* ねこが 4しゅるい あるので、たて1れつだと 画面から あふれる。
+   2れつ×2だんに ならべて、スクロールなしで えらべるように する。 */
 .cat-choices {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
 .cat-choice {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  min-height: 108px;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 150px;
+  padding: 10px 8px;
   background: #ffffff;
   color: var(--c-text);
   border: 5px solid var(--c-choice-line);
   border-radius: 20px;
   font-family: inherit;
   font-weight: 700;
-  font-size: clamp(24px, 5.6vw, 34px);
+  font-size: clamp(20px, 5vw, 30px);
   cursor: pointer;
   box-shadow: 0 6px 0 rgba(0, 0, 0, .2);
   touch-action: manipulation;
@@ -502,15 +507,22 @@ body {
 /* みほん（スプライトシートの 上段左＝おすわり を つかう） */
 .cat-choice__face {
   flex: 0 0 auto;
-  width: 92px;
-  height: 92px;
+  width: clamp(76px, 22vw, 110px);
+  height: clamp(76px, 22vw, 110px);
   background-repeat: no-repeat;
   background-size: 300% 300%;
   background-position: 0% 0%;
 }
 
-.cat-choice__name { flex: 1 1 auto; text-align: left; }
-.cat-choice__mark { flex: 0 0 auto; color: var(--c-ok); }
+.cat-choice__name { text-align: center; }
+
+.cat-choice__mark {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+  color: var(--c-ok);
+  font-size: 1.2em;
+}
 
 /* ========== おおきな おしらせ（大正解！ など） ========== */
 .bignews {
