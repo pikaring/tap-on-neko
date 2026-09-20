@@ -28,16 +28,28 @@ def remove_background(path):
     sat = rgb.max(2) - rgb.min(2)
     bright = rgb.mean(2)
 
-    # 四隅を見て、背景が「純白のベタ塗り」か「市松模様（中間の灰色）」かを判定する。
-    # 市松模様のときは、絵のまわりの白いフチ（ステッカー風の縁取り）を
-    # 残したいので、純白を背景の候補から外す。
-    corners = [bright[2, 2], bright[2, W-3], bright[H-3, 2], bright[H-3, W-3]]
-    white_bg = (sum(corners) / 4) > 246
-    # 無彩色（灰色・白）で、明るい範囲を背景の候補とする
-    cand = (sat < 16) & (bright > 150)
-    if not white_bg:
-        cand &= bright < 246
-    print(f'  背景の種類: {"白のベタ塗り" if white_bg else "市松模様"}')
+    # 背景の色は、画像の外周から実際に採取する。
+    # 市松模様は「灰色＋白」「灰色＋濃い灰色」など組み合わせが絵によって違うため、
+    # 決め打ちのしきい値ではなく、外周にある無彩色の明るさの範囲を背景とみなす。
+    ring = np.concatenate([
+        bright[:3].ravel(), bright[-3:].ravel(),
+        bright[:, :3].ravel(), bright[:, -3:].ravel()])
+    ring_sat = np.concatenate([
+        sat[:3].ravel(), sat[-3:].ravel(),
+        sat[:, :3].ravel(), sat[:, -3:].ravel()])
+    neutral_ring = ring[ring_sat < 16]
+    if neutral_ring.size < ring.size * 0.3:
+        raise SystemExit(f'{path}: 外周が無彩色の背景ではありません（透過や白背景で出力してください）')
+
+    # 明るさを4きざみにまとめ、外周の5%以上をしめる値を背景の色とみなす
+    levels, counts = np.unique((neutral_ring / 4).astype(int) * 4, return_counts=True)
+    bands = [int(v) for v, c in zip(levels, counts) if c > neutral_ring.size * 0.05]
+    lo, hi = min(bands) - 10, max(bands) + 10
+    white_bg = hi > 250          # 背景に 純白が ふくまれるか
+
+    cand = (sat < 16) & (bright >= lo) & (bright <= hi)
+    print(f'  背景の明るさ: {bands} → {lo}〜{hi} を背景とみなす'
+          f'（{"純白をふくむ" if white_bg else "純白は絵として残す"}）')
 
     bg = np.zeros((H, W), bool)
     dq = deque()
@@ -62,9 +74,11 @@ def remove_background(path):
         return out
 
     # JPEG圧縮でにじんだ輪郭まわりの灰色ハローを2px分だけ追加で除去
-    halo = (sat < 26) & (bright > 140)
+    # 背景より すこし くらい ところまでを ハローとみなす。
+    # これ以上 下げると、細い線（しっぽの動き線など）まで けずれる。
+    halo = (sat < 26) & (bright > lo - 8)
     if not white_bg:
-        halo &= bright < 250        # 白いフチは のこす
+        halo &= bright < 250        # 絵のまわりの 白いフチは のこす
     for _ in range(2):
         bg |= dilate(bg) & halo
 

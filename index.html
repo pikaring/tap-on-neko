@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ねこの ともだち</title>
 <meta name="description" content="タップだけであそべる、ねこのおせわと あたまの たいそう">
+<meta name="theme-color" content="#2f5d3a">
+
+<!-- ホーム画面に くわえた ときの アイコンと なまえ -->
+<link rel="icon" type="image/png" sizes="32x32" href="images/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+<link rel="apple-touch-icon" href="images/icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ねこ">
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -65,7 +77,9 @@
       <h2 class="modal__title" id="quizTitle">ごはんの クイズ</h2>
 
       <div class="quiz">
-        <div class="quiz__silhouette" id="quizSilhouette" hidden aria-hidden="true"></div>
+        <div class="quiz__silhouette" id="quizSilhouette" hidden aria-hidden="true">
+          <span class="quiz__silhouette-emoji" id="quizSilhouetteEmoji"></span>
+        </div>
         <p class="quiz__question" id="quizQuestion"></p>
         <div class="quiz__choices" id="quizChoices"></div>
         <p class="quiz__result" id="quizResult" role="status" aria-live="assertive"></p>

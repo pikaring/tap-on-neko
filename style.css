@@ -381,13 +381,33 @@ body {
   padding: 8px;
 }
 
+/* かげあての 絵。images/animals.png（3×3の どうぶつ9しゅるい）を つかう。
+   画像が よみこめない ときは なかの 絵文字が そのまま でる。 */
 .quiz__silhouette {
-  text-align: center;
-  font-size: clamp(80px, 22vw, 140px);
-  line-height: 1.1;
+  width: clamp(160px, 44vw, 250px);
+  height: clamp(160px, 44vw, 250px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* かげ（シルエット）に する */
+.quiz__silhouette[hidden] { display: none; }
+
+.quiz__silhouette--image {
+  background-image: url("images/animals.png");
+  background-repeat: no-repeat;
+  background-size: 300% 300%;        /* 9このうち 1こだけを みせる */
+}
+
+.quiz__silhouette--image .quiz__silhouette-emoji { display: none; }
+
+.quiz__silhouette-emoji {
+  font-size: clamp(90px, 24vw, 150px);
+  line-height: 1;
+}
+
+/* かげ（シルエット）に する。正解すると この クラスを はずして 色を みせる */
 .quiz__silhouette.is-shadow {
   filter: brightness(0) saturate(0) drop-shadow(0 0 1px rgba(0,0,0,.4));
 }

@@ -61,10 +61,11 @@ function saveGame() {
 }
 
 /* ---------------------------------------------------------
-   2. クイズの データ（6もん）
+   2. クイズの データ（ことわざ6もん＋かげあて9もん）
       type: 'text'（ことばの あなうめ） / 'silhouette'（かげあて）
    --------------------------------------------------------- */
 var QUIZZES = [
+  /* ことわざの あなうめ */
   {
     type: 'text',
     question: '「〇〇も あるけば ぼうに あたる」\n〇〇に はいるのは どれ？',
@@ -75,13 +76,6 @@ var QUIZZES = [
     type: 'text',
     question: '「ねこに 〇〇」\nねうちが わからない ことを いう ことば。',
     choices: ['こばん', 'ざぶとん', 'おかし'],
-    answer: 0
-  },
-  {
-    type: 'silhouette',
-    emoji: '🐘',
-    question: 'この かげは なんの どうぶつ？',
-    choices: ['ぞう', 'きりん', 'うま'],
     answer: 0
   },
   {
@@ -97,10 +91,71 @@ var QUIZZES = [
     answer: 0
   },
   {
-    type: 'silhouette',
-    emoji: '🐟',
+    type: 'text',
+    question: '「はなより 〇〇」\nみるより たべる ほうが いい という ことば。',
+    choices: ['だんご', 'おもち', 'おかし'],
+    answer: 0
+  },
+  {
+    type: 'text',
+    question: '「ちりも つもれば 〇〇となる」\n〇〇に はいるのは どれ？',
+    choices: ['やま', 'かわ', 'うみ'],
+    answer: 0
+  },
+
+  /* かげあて（cell は images/animals.png の [たて, よこ]） */
+  {
+    type: 'silhouette', cell: [0, 0], emoji: '🐘',
+    question: 'この かげは なんの どうぶつ？',
+    choices: ['ぞう', 'きりん', 'うま'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [0, 1], emoji: '🦒',
+    question: 'この かげは なんの どうぶつ？',
+    choices: ['きりん', 'うま', 'ぞう'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [0, 2], emoji: '🐰',
+    question: 'この かげは なんの どうぶつ？',
+    choices: ['うさぎ', 'ねこ', 'いぬ'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [1, 0], emoji: '🐔',
+    question: 'この かげは なんの とり？',
+    choices: ['にわとり', 'はと', 'すずめ'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [1, 1], emoji: '🐟',
     question: 'この かげは なにかな？',
     choices: ['さかな', 'とり', 'むし'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [1, 2], emoji: '🐢',
+    question: 'この かげは なんの いきもの？',
+    choices: ['かめ', 'かに', 'かえる'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [2, 0], emoji: '🦋',
+    question: 'この かげは なんの むし？',
+    choices: ['ちょう', 'とんぼ', 'はち'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [2, 1], emoji: '🐴',
+    question: 'この かげは なんの どうぶつ？',
+    choices: ['うま', 'うし', 'ぶた'],
+    answer: 0
+  },
+  {
+    type: 'silhouette', cell: [2, 2], emoji: '🐷',
+    question: 'この かげは なんの どうぶつ？',
+    choices: ['ぶた', 'いぬ', 'ひつじ'],
     answer: 0
   }
 ];
@@ -170,6 +225,7 @@ function cacheElements() {
   el.quizChoices    = document.getElementById('quizChoices');
   el.quizResult     = document.getElementById('quizResult');
   el.quizSilhouette = document.getElementById('quizSilhouette');
+  el.quizSilhouetteEmoji = document.getElementById('quizSilhouetteEmoji');
   el.btnCloseQuiz   = document.getElementById('btnCloseQuiz');
   el.btnCatPicker   = document.getElementById('btnCatPicker');
   el.catModal       = document.getElementById('catModal');
@@ -335,6 +391,12 @@ function enableRoomImages() {
     el.room.classList.add('room--image');
   });
   room.src = 'images/room.jpg';
+
+  var animals = new Image();
+  animals.addEventListener('load', function () {
+    el.quizSilhouette.classList.add('quiz__silhouette--image');
+  });
+  animals.src = 'images/animals.png';
 }
 
 /**
@@ -500,6 +562,20 @@ function nextQuiz() {
   return QUIZZES[index];
 }
 
+/** せんたくしの じゅんばんを ばらばらに する（せいかいが いつも 上に こない ように） */
+function shuffledChoices(quiz) {
+  var list = quiz.choices.map(function (label, i) {
+    return { label: label, correct: (i === quiz.answer) };
+  });
+  for (var i = list.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = list[i];
+    list[i] = list[j];
+    list[j] = tmp;
+  }
+  return list;
+}
+
 function openQuiz() {
   currentQuiz = nextQuiz();
   quizAnswered = false;
@@ -509,22 +585,23 @@ function openQuiz() {
   el.quizQuestion.textContent = currentQuiz.question;
 
   if (currentQuiz.type === 'silhouette') {
-    el.quizSilhouette.textContent = currentQuiz.emoji;
+    el.quizSilhouette.style.backgroundPosition =
+      (currentQuiz.cell[1] * 50) + '% ' + (currentQuiz.cell[0] * 50) + '%';
+    el.quizSilhouetteEmoji.textContent = currentQuiz.emoji;
     el.quizSilhouette.classList.add('is-shadow');
     el.quizSilhouette.hidden = false;
   } else {
     el.quizSilhouette.hidden = true;
-    el.quizSilhouette.textContent = '';
     el.quizSilhouette.classList.remove('is-shadow');
   }
 
   el.quizChoices.textContent = '';
-  currentQuiz.choices.forEach(function (label, i) {
+  shuffledChoices(currentQuiz).forEach(function (choice) {
     var button = document.createElement('button');
     button.type = 'button';
     button.className = 'choice';
-    button.textContent = label;
-    button.addEventListener('click', function () { onChoice(button, i); });
+    button.textContent = choice.label;
+    button.addEventListener('click', function () { onChoice(button, choice.correct); });
     el.quizChoices.appendChild(button);
   });
 
@@ -539,11 +616,11 @@ function closeQuiz() {
   if (!quizAnswered) { setPose(basePose, 0); }   /* とちゅうで とじた ときは もとに もどす */
 }
 
-function onChoice(button, index) {
+function onChoice(button, isCorrect) {
   if (!currentQuiz || quizAnswered) { return; }
 
   /* ―― せいかい ―― */
-  if (index === currentQuiz.answer) {
+  if (isCorrect) {
     quizAnswered = true;
 
     button.classList.add('is-correct');
