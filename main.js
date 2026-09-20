@@ -257,13 +257,21 @@ function setPose(name, holdMs) {
   }
 }
 
+/* ねこの がら。ここを かきかえると ねこの みため が かわる。
+   'cat-chashiro' ＝ 茶白（ちゃしろ）／'cat-kijitora' ＝ キジトラ／'cat-kuro' ＝ くろねこ
+   3まいとも 同じ 9ポーズ・同じ おおきさ・同じ 立ち位置で 作って あるので、
+   入れかえても 画面の みえ方は かわらない。 */
+var CAT_IMAGE = 'cat-chashiro';
+
 /** 画像が よみこめたら 絵文字から さしかえる（しっぱいしても そのまま あそべる） */
 function enableCatImage() {
+  var src = 'images/' + CAT_IMAGE + '.png';
   var img = new Image();
   img.addEventListener('load', function () {
+    el.cat.style.setProperty('--cat-image', 'url("' + src + '")');
     el.cat.classList.add('cat--image');
   });
-  img.src = 'images/cat.png';
+  img.src = src;
 }
 
 var bignewsTimer = null;

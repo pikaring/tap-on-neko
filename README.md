@@ -39,8 +39,23 @@ Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (r
 
 ## 猫の画像（スプライトシート）
 
-`images/cat.png` は **3×3＝9ポーズを1枚にまとめたスプライトシート**（1020×1020px / 1セル340px）です。
-`main.js` が読み込みに成功したときだけ `.cat--image` クラスを付けるので、
+猫の画像は **3×3＝9ポーズを1枚にまとめたスプライトシート**（1020×1020px / 1セル340px）で、
+柄が3種類あります。
+
+| ファイル | 柄 |
+| --- | --- |
+| `images/cat-chashiro.png` | 茶白（ちゃしろ）＝ 既定 |
+| `images/cat-kijitora.png` | キジトラ |
+| `images/cat-kuro.png` | くろねこ |
+
+3枚は**同じ縮尺・同じ立ち位置**に揃えてあるため（9セルすべて下端・横中心の差が0px）、
+入れ替えても表示位置は変わりません。切り替えは `main.js` の先頭付近の1行だけ:
+
+```js
+var CAT_IMAGE = 'cat-chashiro';   // 'cat-kijitora' / 'cat-kuro' に変えると柄が変わる
+```
+
+`main.js` が読み込みに成功したときだけ `.cat--image` クラスと `--cat-image` を付けるので、
 画像が無い・読めない環境では絵文字（🐈）のまま遊べます。
 
 セルとゲーム内の場面の対応（`style.css` の `.is-pose-*`）:
@@ -57,11 +72,17 @@ Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (r
 | 下段 中央 | バンザイ | `is-pose-celebrate` | アイテム獲得 |
 | 下段 右 | 首をかしげる | `is-pose-thinking` | クイズ表示中 |
 
-### 画像を作り直すとき
+### 画像を作り直す・柄を増やすとき
 1. 生成AIに `docs/cat-sprite-prompt.md` のプロンプトを渡して、3×3の9ポーズを1枚で出力する
-2. `python3 tools/build_cat_sheet.py` に通す
-   （市松模様やベタ背景の除去 → 9セルを同じ縮尺・同じ接地位置に整列 → 透過PNG出力）
-3. `pngquant --quality=70-95 cat.png` などで軽量化して `images/cat.png` に置く
+2. `tools/build_cat_sheet.py` に通す（市松模様やベタ背景の除去 → 9セルを共通の縮尺・
+   横中央・下ぞろえに整列 → 透過PNG出力）。**複数枚を一度に渡すと共通の縮尺が使われる**ので、
+   柄を足すときは既存の画像も一緒に渡し直すこと
+
+   ```sh
+   python3 tools/build_cat_sheet.py images \
+     chashiro.jpg:cat-chashiro kijitora.jpg:cat-kijitora kuro.jpg:cat-kuro
+   ```
+3. `pngquant --quality=70-95 --output images/cat-xxx.png images/cat-xxx.png` で軽量化
 
 ポーズを増やす場合は、グリッドの列数・行数に合わせて `style.css` の
 `background-size` と `background-position`、`main.js` の `POSE_CLASSES` を直してください。

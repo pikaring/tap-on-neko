@@ -193,13 +193,14 @@ body {
   animation: breathe 3.2s ease-in-out infinite;
 }
 
-/* ねこの 画像（images/cat.png）は 3×3 の 9ポーズが 1まいに なった スプライトシート。
-   よみこみに 成功した ときだけ main.js が この クラスを つける
-   （よみこめない ときは 絵文字の ままで あそべる）。 */
+/* ねこの 画像は 3×3 の 9ポーズが 1まいに なった スプライトシート。
+   よみこみに 成功した ときだけ main.js が この クラスと --cat-image を つける
+   （よみこめない ときは 絵文字の ままで あそべる）。
+   がらは images/ の なかに 3しゅるい（茶白・キジトラ・くろねこ）。 */
 .cat--image {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background-image: url("images/cat.png");
+  background-image: var(--cat-image, url("images/cat-chashiro.png"));
   background-repeat: no-repeat;
   background-size: 300% 300%;        /* 9マスのうち 1マスだけを みせる */
 }
