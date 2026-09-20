@@ -16,8 +16,10 @@ function defaultSave() {
   return {
     friendship: 0,      // なかよし度の ごうけい
     lastVisit: 0,       // まえに あそんだ ときの じかん（ミリびょう）
-    food: 0,            // おなかの ゲージ（0〜100）
-    play: 0,            // あそびの ゲージ（0〜100）
+    food: 0,            // おなかの ゲージ（0〜10目盛）
+    play: 0,            // あそびの ゲージ（0〜10目盛）
+    foodFull: false,    // まんタンに なって おやすみ中か
+    playFull: false,
     kotobaSeen: [],     // さいきん だした ことばの もんだい
     kanjiSeen: [],      // さいきん だした かんじの もんだい
     silhouetteSeen: [], // さいきん だした かげあての もんだい
@@ -45,7 +47,15 @@ function loadSave() {
     }
     ['food', 'play'].forEach(function (key) {
       if (typeof data[key] === 'number' && isFinite(data[key])) {
-        save[key] = Math.min(METER_MAX, Math.max(0, data[key]));
+        var value = data[key];
+        /* むかしの ほぞん（0〜100）は 10目盛に なおす */
+        if (value > METER_MAX) { value = value / 10; }
+        save[key] = Math.min(METER_MAX, Math.max(0, value));
+      }
+      if (typeof data[key + 'Full'] === 'boolean') {
+        save[key + 'Full'] = data[key + 'Full'];
+      } else if (save[key] >= METER_MAX - 0.001) {
+        save[key + 'Full'] = true;      /* まんタンで 保存されて いた ばあい */
       }
     });
     ['kotobaSeen', 'kanjiSeen', 'silhouetteSeen'].forEach(function (key) {
@@ -192,10 +202,10 @@ function cacheElements() {
   el.quizYomi       = document.getElementById('quizYomi');
   el.quizImi        = document.getElementById('quizImi');
   el.meterFood      = document.getElementById('meterFood');
-  el.meterFoodFill  = document.getElementById('meterFoodFill');
+  el.meterFoodNotches = document.getElementById('meterFoodNotches');
   el.meterFoodState = document.getElementById('meterFoodState');
   el.meterPlay      = document.getElementById('meterPlay');
-  el.meterPlayFill  = document.getElementById('meterPlayFill');
+  el.meterPlayNotches = document.getElementById('meterPlayNotches');
   el.meterPlayState = document.getElementById('meterPlayState');
   el.btnCatPicker   = document.getElementById('btnCatPicker');
   el.catModal       = document.getElementById('catModal');
@@ -308,7 +318,7 @@ var idleKindNow = '';
 
 /** いまの ねこの きもち（どの ポーズの グループを つかうか） */
 function idleKind() {
-  if (meterIsFull('food') && meterIsFull('play')) { return 'satisfied'; }
+  if (meterResting('food') && meterResting('play')) { return 'satisfied'; }
   if (state.play <= 0 && state.food <= 0) { return 'wantPlay'; }   /* あそびの ほうを 先に */
   if (state.play <= 0) { return 'wantPlay'; }
   if (state.food <= 0) { return 'wantFood'; }
@@ -582,15 +592,25 @@ function closeCatPicker() {
       ・じかんが たつと へっていき、0に なると ねこが おねがいしてくる
       ・あそびの ゲージの ほうが はやく へる
    --------------------------------------------------------- */
-var METER_MAX      = 100;
-var FOOD_PER_QUIZ  = 25;    // ごはんの クイズ 4かい せいかいで まんタン
-var PLAY_PER_QUIZ  = 25;    // あそびの クイズ 4かい せいかいで まんタン
-var FOOD_MINUTES   = 360;   // まんタンから 0に なるまで 6じかん
-var PLAY_MINUTES   = 180;   // あそびは 3じかんで 0（ごはんの 2ばい はやい）
+var METER_MAX      = 10;    // ゲージの 目盛の かず
+var FOOD_PER_QUIZ  = 3;     // ごはんの クイズ 1かいで 3目盛（4かいで まんタン）
+var PLAY_PER_QUIZ  = 3;     // あそびの クイズ 1かいで 3目盛（4かいで まんタン）
+var FOOD_MINUTES   = 360;   // まんタンから 0に なるまで 6じかん（36ぷんで 1目盛）
+var PLAY_MINUTES   = 180;   // あそびは 3じかんで 0（18ぷんで 1目盛）
 var lastTick = 0;
 
+/** ゲージが まんタンか */
 function meterIsFull(name) {
   return state[name] >= METER_MAX - 0.001;
+}
+
+/**
+ * その お世話が いま おやすみ中か。
+ * まんタンに なったら、0に なるまで おやすみに する。
+ * （すこし 減った だけで また できると、いくらでも くりかえせて しまう ため）
+ */
+function meterResting(name) {
+  return state[name + 'Full'] === true;
 }
 
 /** じかんの ぶんだけ ゲージを へらす */
@@ -598,12 +618,16 @@ function decayMeters(minutes) {
   if (!(minutes > 0)) { return; }
   state.food = Math.max(0, state.food - minutes * METER_MAX / FOOD_MINUTES);
   state.play = Math.max(0, state.play - minutes * METER_MAX / PLAY_MINUTES);
+  /* 0に なったら おやすみ おわり。また お世話できる */
+  if (state.food <= 0) { state.foodFull = false; }
+  if (state.play <= 0) { state.playFull = false; }
 }
 
 /** ゲージを ふやす（まんタンより 上には いかない） */
 function addMeter(name, amount) {
   var before = idleKindNow;
   state[name] = Math.min(METER_MAX, state[name] + amount);
+  if (meterIsFull(name)) { state[name + 'Full'] = true; }   /* ここから おやすみ */
   renderMeters();
   updateBasePose();
   /* まんぞくした ときは、ことばと ねている すがたで つたえる（すこし あとで） */
@@ -617,17 +641,36 @@ function addMeter(name, amount) {
   saveGame();
 }
 
+/** ゲージの 目盛を つくる（さいしょに 1かいだけ） */
+function buildMeters() {
+  ['Food', 'Play'].forEach(function (key) {
+    var box = el['meter' + key + 'Notches'];
+    box.textContent = '';
+    for (var i = 0; i < METER_MAX; i++) {
+      var notch = document.createElement('span');
+      notch.className = 'meter__notch';
+      box.appendChild(notch);
+    }
+  });
+}
+
 /** ゲージと ボタンの みためを こうしん */
 function renderMeters() {
   [['food', 'おなか'], ['play', 'あそび']].forEach(function (pair) {
     var name = pair[0];
     var key = (name === 'food') ? 'Food' : 'Play';
     var value = state[name];
-    el['meter' + key + 'Fill'].style.width = Math.round(value) + '%';
-    el['meter' + key].classList.toggle('is-full', meterIsFull(name));
+    var lit = Math.round(value);
+
+    var notches = el['meter' + key + 'Notches'].children;
+    for (var i = 0; i < notches.length; i++) {
+      notches[i].classList.toggle('is-on', i < lit);
+    }
+
+    el['meter' + key].classList.toggle('is-full', meterResting(name));
     var word = '';
-    if (meterIsFull(name)) {
-      word = 'いっぱい';
+    if (meterResting(name)) {
+      word = 'まんぞく';
     } else if (value <= 0) {
       word = (name === 'food') ? 'ぺこぺこ' : 'あそびたい';
     }
@@ -637,8 +680,8 @@ function renderMeters() {
   /* まんタンの あいだは ボタンを やすみの いろに する。
      おしても だいじょうぶで、ねこが「いっぱいだニャ」と こたえる ので、
      aria-disabled（おしても なにも おきない）には しない。 */
-  el.btnFeed.classList.toggle('is-resting', meterIsFull('food'));
-  el.btnPet.classList.toggle('is-resting', meterIsFull('play'));
+  el.btnFeed.classList.toggle('is-resting', meterResting('food'));
+  el.btnPet.classList.toggle('is-resting', meterResting('play'));
 }
 
 /** ゲージが 0の ときの おねがいの ことば（0が なければ から） */
@@ -724,7 +767,7 @@ function onPet() {
 
 /** 「あそぶ」ボタン（あそびの ゲージが いっぱいの ときは やすませる） */
 function onPlay() {
-  if (meterIsFull('play')) {
+  if (meterResting('play')) {
     setMessage('たくさん あそんだニャ。すこし やすむニャ');
     setPose('night', 2600);
     return;
@@ -978,7 +1021,7 @@ function onChoice(button, label) {
 
 /** 「ごはんを あげる」ボタン（おなかが いっぱいの ときは やすませる） */
 function onFeed() {
-  if (meterIsFull('food')) {
+  if (meterResting('food')) {
     setMessage('おなかは いっぱいだニャ。ごちそうさまニャ');
     setPose('idle', 2600);
     return;
@@ -1003,6 +1046,7 @@ function init() {
   lastTick = Date.now();
 
   renderStatus();
+  buildMeters();
   renderMeters();
   buildRoomItems();
   renderRoomItems();

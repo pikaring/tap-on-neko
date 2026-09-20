@@ -129,28 +129,31 @@ body {
 
 .meter__state { font-size: .85em; }
 
-.meter__bar {
-  display: block;
+/* ゲージは 10目盛。かずを 目で かぞえられる ように、1つずつ 区切る */
+.meter__notches {
+  display: flex;
+  gap: 2px;
   height: 22px;
   margin-top: 3px;
+  padding: 2px;
   background: rgba(0, 0, 0, .25);
   border: 3px solid #ffffff;
   border-radius: 999px;
   overflow: hidden;
 }
 
-.meter__fill {
-  display: block;
-  height: 100%;
-  width: 0%;
-  transition: width .4s ease;
+.meter__notch {
+  flex: 1 1 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .14);
+  transition: background-color .3s ease;
 }
 
-#meterFood .meter__fill { background: #ffc14d; }   /* おなか＝きいろ */
-#meterPlay .meter__fill { background: #ff8fa3; }   /* あそび＝ピンク */
+#meterFood .meter__notch.is-on { background: #ffc14d; }   /* おなか＝きいろ */
+#meterPlay .meter__notch.is-on { background: #ff8fa3; }   /* あそび＝ピンク */
 
-/* まんタンの ときは ふちを めだたせる */
-.meter.is-full .meter__bar { border-color: #ffe36e; }
+/* まんタン（まんぞくして おやすみ中）は ふちを めだたせる */
+.meter.is-full .meter__notches { border-color: #ffe36e; }
 
 .message {
   margin: 12px 0 0;
@@ -734,7 +737,7 @@ body {
 @media (max-height: 700px) {
   .header { padding: 10px 14px 12px; }
 
-  .meter__bar { height: 18px; }
+  .meter__notches { height: 18px; }
 
   .message {
     margin-top: 8px;
@@ -800,7 +803,7 @@ body {
 
   .meters { margin-top: 6px; gap: 8px; }
   .meter__label { font-size: 13px; }
-  .meter__bar { height: 14px; border-width: 2px; }
+  .meter__notches { height: 14px; border-width: 2px; gap: 1px; }
 
   .message {
     margin-top: 6px;

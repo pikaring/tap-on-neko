@@ -254,16 +254,25 @@ details p { margin-top: 12px; font-size: 15px; padding-left: 24px; }
 .nmeters { display: flex; gap: 8px; margin-top: 8px; }
 
 .nmeter {
+  display: flex;
+  gap: 1px;
   flex: 1 1 0;
-  height: 10px;
+  height: 12px;
+  padding: 1px;
   background: rgba(0, 0, 0, .25);
   border: 2px solid #fff;
   border-radius: 999px;
   overflow: hidden;
 }
 
-.nmeter i { display: block; height: 100%; background: #ffc14d; }
-.nmeter--play i { background: #ff8fa3; }
+.nmeter i {
+  flex: 1 1 0;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, .16);
+}
+
+.nmeter i.on { background: #ffc14d; }
+.nmeter--play i.on { background: #ff8fa3; }
 
 .nmsg {
   margin: 10px 0 0;
