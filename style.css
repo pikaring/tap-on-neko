@@ -174,6 +174,40 @@ body {
 .room-item--flower  { left: 8%;  top: 8%; }
 .room-item--fish    { right: 8%; top: 8%; }
 
+/* へやの なかの ボタン（ねこを かえる）。
+   したの おおきな ボタン2つは そのまま のこす ため、かべの うえに おく。 */
+.room-button {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  min-height: 56px;                  /* タップ領域は 48px 以上 */
+  padding: 6px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, .94);
+  color: var(--c-header);
+  border: 4px solid var(--c-header);
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(18px, 4.4vw, 24px);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.room-button:active {
+  transform: translateX(-50%) translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .2);
+}
+
+.room-button:focus-visible { outline: 6px solid var(--c-feed); outline-offset: 3px; }
+
+.room-button__icon { font-size: 1.15em; line-height: 1; }
+
 /* ========== ねこ ========== */
 .cat-stage {
   position: absolute;
@@ -200,7 +234,7 @@ body {
 .cat--image {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background-image: var(--cat-image, url("images/cat-chashiro.png"));
+  background-image: var(--cat-image, url("images/cat-kijitora.png"));
   background-repeat: no-repeat;
   background-size: 300% 300%;        /* 9マスのうち 1マスだけを みせる */
 }
@@ -403,6 +437,53 @@ body {
 
 .quiz__result.is-ok { color: var(--c-ok); }
 .quiz__result.is-ng { color: var(--c-ng); }
+
+/* ========== ねこを えらぶ がめん ========== */
+.cat-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cat-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 108px;
+  padding: 8px 16px;
+  background: #ffffff;
+  color: var(--c-text);
+  border: 5px solid var(--c-choice-line);
+  border-radius: 20px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(24px, 5.6vw, 34px);
+  cursor: pointer;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, .2);
+  touch-action: manipulation;
+}
+
+.cat-choice:active { transform: translateY(5px); box-shadow: 0 1px 0 rgba(0, 0, 0, .2); }
+.cat-choice:focus-visible { outline: 6px solid var(--c-feed); outline-offset: 3px; }
+
+/* いま えらんでいる ねこ */
+.cat-choice.is-current {
+  background: #e7f4ea;
+  border-color: var(--c-ok);
+}
+
+/* みほん（スプライトシートの 上段左＝おすわり を つかう） */
+.cat-choice__face {
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  background-position: 0% 0%;
+}
+
+.cat-choice__name { flex: 1 1 auto; text-align: left; }
+.cat-choice__mark { flex: 0 0 auto; color: var(--c-ok); }
 
 /* ========== おおきな おしらせ（大正解！ など） ========== */
 .bignews {

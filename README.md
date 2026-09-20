@@ -17,6 +17,7 @@
 2. 「ごはんを あげる（クイズ）」で 3択クイズ。正解すると「大正解！」で **+3**
 3. なかよし度 **10 / 30 / 50 / 80** で部屋にアイテムが増える（クッション・けいと・おはな・おさかな）
 4. なかよし度は自動保存され、次に開いたときに引き継がれる
+5. 猫の柄は「ねこを かえる」からいつでも変更できる（きじとら／ちゃしろ／くろねこ）
 
 ## 設計上の約束（高齢者向けの配慮）
 - 操作は**シングルタップのみ**。スワイプ・ドラッグ・長押しは使わない
@@ -44,16 +45,27 @@ Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (r
 
 | ファイル | 柄 |
 | --- | --- |
-| `images/cat-chashiro.png` | 茶白（ちゃしろ）＝ 既定 |
-| `images/cat-kijitora.png` | キジトラ |
+| `images/cat-kijitora.png` | キジトラ ＝ 既定 |
+| `images/cat-chashiro.png` | 茶白（ちゃしろ） |
 | `images/cat-kuro.png` | くろねこ |
 
 3枚は**同じ縮尺・同じ立ち位置**に揃えてあるため（9セルすべて下端・横中心の差が0px）、
-入れ替えても表示位置は変わりません。切り替えは `main.js` の先頭付近の1行だけ:
+入れ替えても表示位置は変わりません。
+
+遊ぶ人は**初回起動時の「どの ねこに する？」**と、部屋の上にある
+**「ねこを かえる」ボタン**でいつでも柄を選べます（選択は LocalStorage に保存）。
+既定は `main.js` の `DEFAULT_CAT`、選べる柄は `CAT_PATTERNS` で定義しています。
 
 ```js
-var CAT_IMAGE = 'cat-chashiro';   // 'cat-kijitora' / 'cat-kuro' に変えると柄が変わる
+var CAT_PATTERNS = [
+  { id: 'cat-kijitora', name: 'きじとら' },
+  { id: 'cat-chashiro', name: 'ちゃしろ' },
+  { id: 'cat-kuro',     name: 'くろねこ' }
+];
+var DEFAULT_CAT = 'cat-kijitora';
 ```
+
+柄を足すときは、画像を `images/` に置いて `CAT_PATTERNS` に1行足すだけです。
 
 `main.js` が読み込みに成功したときだけ `.cat--image` クラスと `--cat-image` を付けるので、
 画像が無い・読めない環境では絵文字（🐈）のまま遊べます。

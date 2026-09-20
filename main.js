@@ -16,7 +16,8 @@ function defaultSave() {
   return {
     friendship: 0,      // なかよし度の ごうけい
     lastVisit: 0,       // まえに あそんだ ときの じかん（ミリびょう）
-    quizQueue: []       // まだ だしていない クイズの ばんごう
+    quizQueue: [],      // まだ だしていない クイズの ばんごう
+    catPattern: ''      // えらんだ ねこの がら（はじめては から）
   };
 }
 
@@ -34,6 +35,9 @@ function loadSave() {
     }
     if (typeof data.lastVisit === 'number' && isFinite(data.lastVisit)) {
       save.lastVisit = data.lastVisit;
+    }
+    if (typeof data.catPattern === 'string' && findPattern(data.catPattern)) {
+      save.catPattern = data.catPattern;
     }
     if (Array.isArray(data.quizQueue)) {
       save.quizQueue = data.quizQueue.filter(function (n) {
@@ -57,7 +61,7 @@ function saveGame() {
 }
 
 /* ---------------------------------------------------------
-   2. クイズの データ（ダミー：5もん）
+   2. クイズの データ（6もん）
       type: 'text'（ことばの あなうめ） / 'silhouette'（かげあて）
    --------------------------------------------------------- */
 var QUIZZES = [
@@ -102,7 +106,33 @@ var QUIZZES = [
 ];
 
 /* ---------------------------------------------------------
-   3. なかよし度で ふえる へやの アイテム
+   3. ねこの がら（3しゅるい）
+      どれも 同じ 9ポーズ・同じ おおきさ・同じ 立ち位置で 作って あるので、
+      入れかえても 画面の みえ方は かわらない。
+   --------------------------------------------------------- */
+var CAT_PATTERNS = [
+  { id: 'cat-kijitora', name: 'きじとら' },
+  { id: 'cat-chashiro', name: 'ちゃしろ' },
+  { id: 'cat-kuro',     name: 'くろねこ' }
+];
+var DEFAULT_CAT = 'cat-kijitora';
+var currentCat = DEFAULT_CAT;
+
+/** がらの いちらんから さがす（しらない なまえは null） */
+function findPattern(id) {
+  for (var i = 0; i < CAT_PATTERNS.length; i++) {
+    if (CAT_PATTERNS[i].id === id) { return CAT_PATTERNS[i]; }
+  }
+  return null;
+}
+
+/** がらの 画像の ばしょ */
+function catImagePath(id) {
+  return 'images/' + id + '.png';
+}
+
+/* ---------------------------------------------------------
+   4. なかよし度で ふえる へやの アイテム
    --------------------------------------------------------- */
 var UNLOCKS = [
   { point: 10, id: 'itemCushion', name: 'ふかふかの クッション' },
@@ -112,7 +142,7 @@ var UNLOCKS = [
 ];
 
 /* ---------------------------------------------------------
-   4. 画面の ぶひん
+   5. 画面の ぶひん
    --------------------------------------------------------- */
 var el = {};
 
@@ -131,12 +161,16 @@ function cacheElements() {
   el.quizResult     = document.getElementById('quizResult');
   el.quizSilhouette = document.getElementById('quizSilhouette');
   el.btnCloseQuiz   = document.getElementById('btnCloseQuiz');
+  el.btnCatPicker   = document.getElementById('btnCatPicker');
+  el.catModal       = document.getElementById('catModal');
+  el.catChoices     = document.getElementById('catChoices');
+  el.btnCloseCat    = document.getElementById('btnCloseCat');
   el.bignews        = document.getElementById('bignews');
   el.bignewsText    = document.getElementById('bignewsText');
 }
 
 /* ---------------------------------------------------------
-   5. メッセージ・ひょうじの こうしん
+   6. メッセージ・ひょうじの こうしん
    --------------------------------------------------------- */
 function setMessage(text) {
   el.message.textContent = text;
@@ -163,7 +197,7 @@ function renderRoomItems() {
 }
 
 /* ---------------------------------------------------------
-   6. じかんに あわせた あいさつ
+   7. じかんに あわせた あいさつ
    --------------------------------------------------------- */
 function greetingByHour(hour) {
   if (hour >= 5 && hour <= 10) {
@@ -203,7 +237,7 @@ function showGreeting() {
 }
 
 /* ---------------------------------------------------------
-   7. エフェクト（ハート・ごはん・おおきな おしらせ）
+   8. エフェクト（ハート・ごはん・おおきな おしらせ）
    --------------------------------------------------------- */
 /** ねこの まわりに 絵文字を ふわっと うかべる */
 function popEffects(emoji, count) {
@@ -257,21 +291,32 @@ function setPose(name, holdMs) {
   }
 }
 
-/* ねこの がら。ここを かきかえると ねこの みため が かわる。
-   'cat-chashiro' ＝ 茶白（ちゃしろ）／'cat-kijitora' ＝ キジトラ／'cat-kuro' ＝ くろねこ
-   3まいとも 同じ 9ポーズ・同じ おおきさ・同じ 立ち位置で 作って あるので、
-   入れかえても 画面の みえ方は かわらない。 */
-var CAT_IMAGE = 'cat-chashiro';
+/**
+ * ねこの がらを きりかえる。
+ * 画像が よみこめた ときだけ さしかえるので、よみこめない ときは
+ * 絵文字の ままで あそべる。
+ * @param {string}  id       がらの なまえ（cat-kijitora など）
+ * @param {boolean} announce true なら あいさつの メッセージを だす
+ */
+function applyCatPattern(id, announce) {
+  if (!findPattern(id)) { id = DEFAULT_CAT; }
+  currentCat = id;
+  state.catPattern = id;
+  saveGame();
 
-/** 画像が よみこめたら 絵文字から さしかえる（しっぱいしても そのまま あそべる） */
-function enableCatImage() {
-  var src = 'images/' + CAT_IMAGE + '.png';
+  var src = catImagePath(id);
   var img = new Image();
   img.addEventListener('load', function () {
     el.cat.style.setProperty('--cat-image', 'url("' + src + '")');
     el.cat.classList.add('cat--image');
   });
   img.src = src;
+
+  if (announce) {
+    setMessage('これから よろしくニャ！');
+    setPose('welcome', 3000);
+    popEffects('❤️', 2);
+  }
 }
 
 var bignewsTimer = null;
@@ -292,7 +337,51 @@ function showBigNews(text, duration, atTop) {
 }
 
 /* ---------------------------------------------------------
-   8. なかよし度を ふやす（アイテムの おしらせも する）
+   ねこを えらぶ がめん
+   --------------------------------------------------------- */
+/** せんたくしを つくりなおす（いま えらんでいる ねこに しるしを つける） */
+function renderCatChoices() {
+  el.catChoices.textContent = '';
+  CAT_PATTERNS.forEach(function (pattern) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cat-choice' + (pattern.id === currentCat ? ' is-current' : '');
+
+    var face = document.createElement('span');
+    face.className = 'cat-choice__face';
+    face.style.backgroundImage = 'url("' + catImagePath(pattern.id) + '")';
+
+    var name = document.createElement('span');
+    name.className = 'cat-choice__name';
+    name.textContent = pattern.name;
+
+    var mark = document.createElement('span');
+    mark.className = 'cat-choice__mark';
+    mark.textContent = (pattern.id === currentCat) ? '✔' : '';
+
+    button.appendChild(face);
+    button.appendChild(name);
+    button.appendChild(mark);
+    button.addEventListener('click', function () {
+      if (pattern.id === currentCat) { return; }
+      applyCatPattern(pattern.id, true);
+      renderCatChoices();               /* えらんだら すぐ みため が かわる */
+    });
+    el.catChoices.appendChild(button);
+  });
+}
+
+function openCatPicker() {
+  renderCatChoices();
+  el.catModal.hidden = false;
+}
+
+function closeCatPicker() {
+  el.catModal.hidden = true;
+}
+
+/* ---------------------------------------------------------
+   9. なかよし度を ふやす（アイテムの おしらせも する）
    --------------------------------------------------------- */
 function addFriendship(amount, messageWhenNoUnlock) {
   var before = state.friendship;
@@ -320,7 +409,7 @@ function addFriendship(amount, messageWhenNoUnlock) {
 }
 
 /* ---------------------------------------------------------
-   9. 「なでる」
+   10. 「なでる」
    --------------------------------------------------------- */
 var PET_MESSAGES = [
   'ゴロゴロ…（うれしいニャ！）',
@@ -339,7 +428,7 @@ function onPet() {
 }
 
 /* ---------------------------------------------------------
-   10. 「ごはんを あげる（クイズ）」
+   11. 「ごはんを あげる（クイズ）」
    --------------------------------------------------------- */
 var currentQuiz = null;
 var quizAnswered = false;
@@ -444,22 +533,29 @@ function onChoice(button, index) {
 }
 
 /* ---------------------------------------------------------
-   11. スタート
+   12. スタート
    --------------------------------------------------------- */
 function init() {
   cacheElements();
   state = loadSave();
 
+  /* はじめて あそぶ ときだけ、ねこを えらぶ がめんを だす */
+  var firstTime = !findPattern(state.catPattern);
+
   renderStatus();
   renderRoomItems();
   setPose(basePose, 0);
-  enableCatImage();
+  applyCatPattern(firstTime ? DEFAULT_CAT : state.catPattern, false);
   showGreeting();
   saveGame();
 
   el.btnPet.addEventListener('click', onPet);
   el.btnFeed.addEventListener('click', openQuiz);
   el.btnCloseQuiz.addEventListener('click', closeQuiz);
+  el.btnCatPicker.addEventListener('click', openCatPicker);
+  el.btnCloseCat.addEventListener('click', closeCatPicker);
+
+  if (firstTime) { openCatPicker(); }
 
   /* ねこ本体を タップしても なでられる（わかりやすさの ため） */
   el.cat.addEventListener('click', onPet);
