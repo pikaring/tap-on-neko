@@ -324,10 +324,24 @@
     <span>Tap on NEKO</span>
     <a href="https://github.com/pikaring/tap-on-neko">GitHub</a>
     <a href="https://github.com/pikaring/tap-on-neko/blob/main/README.md">README</a>
+    <span class="counter">累計アクセス <b id="counter-value">―</b> 回</span>
     <span class="sep">MIT License · pikaring · 依存ライブラリなし</span>
     <span class="disclosure">当サイトはAmazonアソシエイト・プログラムに参加しており、掲載しているリンクから商品が買われると運営者に紹介料が入る場合があります。</span>
   </div>
 </footer>
+
+<script>
+// アクセスカウンター（ほかのページと同じGAS。page名でサイトごとに別カウント）
+(function () {
+  var el = document.getElementById('counter-value');
+  if (!el) return;
+  var page = location.pathname.replace(/index\.html$/, '');
+  fetch('https://script.google.com/macros/s/AKfycbxkQLZXNAFXkT7zhIO0TmMDGU3A0TQ234Lf-yhw5J7lvFAjCi3KLNLRd_LKd_xlOxPd/exec?page=' + encodeURIComponent(page))
+    .then(function (r) { return r.json(); })
+    .then(function (d) { el.textContent = Number(d.count).toLocaleString('ja-JP'); })
+    .catch(function () { el.textContent = '―'; });
+})();
+</script>
 
 <script>
 // Amazon Creators API で取った商品情報（tools/fetch_goods.py が assets/goods.json に書く）。
