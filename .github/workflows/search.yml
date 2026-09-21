@@ -1,0 +1,27 @@
+name: search
+on:
+  workflow_dispatch:
+    inputs:
+      keywords:
+        description: 'キーワード（｜区切り）'
+        required: true
+        default: 'プ~ねこ 北道正幸'
+      index:
+        description: '売り場（All / KindleStore / Books）'
+        required: false
+        default: 'KindleStore'
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - env:
+          CREATORS_CLIENT_ID: ${{ secrets.CREATORS_CLIENT_ID }}
+          CREATORS_CLIENT_SECRET: ${{ secrets.CREATORS_CLIENT_SECRET }}
+          SEARCH_INDEX: ${{ github.event.inputs.index }}
+        run: |
+          IFS='｜' read -ra KW <<< "${{ github.event.inputs.keywords }}"
+          python tools/search_goods.py "${KW[@]}"
