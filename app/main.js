@@ -18,8 +18,6 @@ function defaultSave() {
     lastVisit: 0,       // まえに あそんだ ときの じかん（ミリびょう）
     food: 0,            // おなかの ゲージ（0〜10目盛）
     play: 0,            // あそびの ゲージ（0〜10目盛）
-    foodFull: false,    // まんタンに なって おやすみ中か
-    playFull: false,
     kotobaSeen: [],     // さいきん だした ことばの もんだい
     kanjiSeen: [],      // さいきん だした かんじの もんだい
     silhouetteSeen: [], // さいきん だした かげあての もんだい
@@ -52,11 +50,8 @@ function loadSave() {
         if (value > METER_MAX) { value = value / 10; }
         save[key] = Math.min(METER_MAX, Math.max(0, value));
       }
-      if (typeof data[key + 'Full'] === 'boolean') {
-        save[key + 'Full'] = data[key + 'Full'];
-      } else if (save[key] >= METER_MAX - 0.001) {
-        save[key + 'Full'] = true;      /* まんタンで 保存されて いた ばあい */
-      }
+      /* むかしの ほぞんに ある foodFull / playFull は つかわない。
+         いまは 目盛の のこりだけで できるか どうかを きめる */
     });
     ['kotobaSeen', 'kanjiSeen', 'silhouetteSeen'].forEach(function (key) {
       if (Array.isArray(data[key])) {
@@ -599,18 +594,20 @@ var FOOD_MINUTES   = 360;   // まんタンから 0に なるまで 6じかん�
 var PLAY_MINUTES   = 180;   // あそびは 3じかんで 0（18ぷんで 1目盛）
 var lastTick = 0;
 
-/** ゲージが まんタンか */
-function meterIsFull(name) {
-  return state[name] >= METER_MAX - 0.001;
+/** その お世話 1かいで ふえる 目盛の かず */
+function meterStep(name) {
+  return (name === 'food') ? FOOD_PER_QUIZ : PLAY_PER_QUIZ;
 }
 
 /**
  * その お世話が いま おやすみ中か。
- * まんタンに なったら、0に なるまで おやすみに する。
- * （すこし 減った だけで また できると、いくらでも くりかえせて しまう ため）
+ * 1かいぶん（3目盛）の すきまが できるまでは おやすみ。
+ * ・すこし 減った だけで また できる → いくらでも くりかえせて しまう
+ * ・0に なるまで できない → ゲージが 減っても できない（ように 見える）
+ * その あいだを とって、あと 1かい 入る すきまが できたら また できる。
  */
 function meterResting(name) {
-  return state[name + 'Full'] === true;
+  return state[name] > METER_MAX - meterStep(name) + 0.001;
 }
 
 /** じかんの ぶんだけ ゲージを へらす */
@@ -618,16 +615,12 @@ function decayMeters(minutes) {
   if (!(minutes > 0)) { return; }
   state.food = Math.max(0, state.food - minutes * METER_MAX / FOOD_MINUTES);
   state.play = Math.max(0, state.play - minutes * METER_MAX / PLAY_MINUTES);
-  /* 0に なったら おやすみ おわり。また お世話できる */
-  if (state.food <= 0) { state.foodFull = false; }
-  if (state.play <= 0) { state.playFull = false; }
 }
 
 /** ゲージを ふやす（まんタンより 上には いかない） */
 function addMeter(name, amount) {
   var before = idleKindNow;
   state[name] = Math.min(METER_MAX, state[name] + amount);
-  if (meterIsFull(name)) { state[name + 'Full'] = true; }   /* ここから おやすみ */
   renderMeters();
   updateBasePose();
   /* まんぞくした ときは、ことばと ねている すがたで つたえる（すこし あとで） */
