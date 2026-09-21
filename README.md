@@ -295,3 +295,12 @@ var DEFAULT_CAT = 'cat-kijitora';
 
 画像の床の帯は下から約31%で、猫の立ち位置（下から8%）と小物（下から2〜28%）は
 すべてその範囲に収まるようにしています。
+
+## 紹介ページの 道具と本（Amazonアソシエイト）
+
+`index.html` の `<div class="good" data-asin="...">` が商品カードです。
+表紙画像と価格は `assets/goods.json` から後付けで差し込みます（無ければテキストのまま）。
+
+- 生成：`tools/fetch_goods.py`（`index.html` の `data-asin` を拾う）
+- 毎日の更新：`.github/workflows/goods.yml`（3:00 JST）
+- 必要な Secrets：`CREATORS_CLIENT_ID` / `CREATORS_CLIENT_SECRET`（未登録でも失敗せず、何もしません）

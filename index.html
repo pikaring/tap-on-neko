@@ -98,28 +98,28 @@
     </div>
     <div class="goods-grid">
 
-      <div class="good">
+      <div class="good" data-asin="B08XBGY6Y7">
         <p class="gcat">おもちゃ</p>
         <h3>ペティオ けりぐるみ 最強のエビ</h3>
         <p>後ろ足でけって遊ぶ、細長いぬいぐるみ。破れにくいタフレザー（合皮）づかいで、けりぐるみの中でも長もちする形です。ゲームの「あそぶ」の、実物版。</p>
         <a class="glink" href="https://www.amazon.co.jp/dp/B08XBGY6Y7?tag=redcomet-22" target="_blank" rel="sponsored noopener">Amazonで見る ↗</a>
       </div>
 
-      <div class="good">
+      <div class="good" data-asin="B0834BSTWL">
         <p class="gcat">爪とぎ</p>
         <h3>ペティオ 両面使えるつめとぎ 3個パック×2</h3>
         <p>段ボールの平らな爪とぎ。片面がへたってきたら裏返して、もう一度使えます。3枚入りが2パック届く大容量セットなので、部屋ごとに置いておけます。</p>
         <a class="glink" href="https://www.amazon.co.jp/dp/B0834BSTWL?tag=redcomet-22" target="_blank" rel="sponsored noopener">Amazonで見る ↗</a>
       </div>
 
-      <div class="good">
+      <div class="good" data-asin="4253216102">
         <p class="gcat">マンガ</p>
         <h3>木曜日のフルット（1）</h3>
         <p>石黒正数／少年チャンピオン・コミックス。野良猫のフルットと、まじめな大学生の、なんでもない日々。短い話が続くので、すきま時間に1本ずつ読めます。</p>
         <a class="glink" href="https://www.amazon.co.jp/dp/4253216102?tag=redcomet-22" target="_blank" rel="sponsored noopener">Amazonで見る ↗</a>
       </div>
 
-      <div class="good">
+      <div class="good" data-asin="4063143732">
         <p class="gcat">マンガ</p>
         <h3>プ〜ねこ</h3>
         <p>北道正幸／アフタヌーンKC（講談社）。しゃべる猫たちのゆるい4コマ。うちの猫も、これくらい勝手なことを考えているのかもしれません。</p>
@@ -329,5 +329,34 @@
   </div>
 </footer>
 
+<script>
+// Amazon Creators API で取った商品情報（tools/fetch_goods.py が assets/goods.json に書く）。
+// 取れていれば画像と価格を足し、無ければテキストカードのまま。
+(function () {
+  var cards = document.querySelectorAll('.good[data-asin]');
+  if (!cards.length) return;
+  fetch('assets/goods.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
+    var at = new Date(d.fetchedAt);
+    var stamp = isNaN(at) ? '' : (at.getMonth() + 1) + '/' + at.getDate() + '時点';
+    cards.forEach(function (c) {
+      var it = d.items && d.items[c.dataset.asin];
+      if (!it) return;
+      if (it.image) {
+        var img = document.createElement('img');
+        img.className = 'gimg'; img.src = it.image; img.alt = ''; img.loading = 'lazy';
+        c.insertBefore(img, c.firstChild);
+      }
+      if (it.price) {
+        var p = document.createElement('p');
+        p.className = 'gprice';
+        p.innerHTML = it.price + (stamp ? ' <small>' + stamp + '</small>' : '');
+        var link = c.querySelector('.glink');
+        c.insertBefore(p, link);
+      }
+      if (it.url) { var a = c.querySelector('.glink'); if (a) a.href = it.url; }
+    });
+  }).catch(function () { /* 取れなければ何もしない */ });
+})();
+</script>
 </body>
 </html>
