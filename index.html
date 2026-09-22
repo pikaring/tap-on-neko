@@ -22,8 +22,16 @@
 <link rel="stylesheet" href="assets/site.css">
 <script>
   /* ホーム画面に くわえた アイコンから 開いた ときは、紹介ページを とばして
-     そのまま ゲームへ（すでに 入れて ある 方の 使い勝手を かえない ため） */
-  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+     そのまま ゲームへ（すでに 入れて ある 方の 使い勝手を かえない ため）。
+
+     ただし standalone は「いま 開いて いる ウィンドウの 表示モード」なので、
+     ポータルなど 別の ページを ホーム画面から 開いて いると、そこから たどって
+     きた この ページでも 条件が 成立して しまう。アイコンからの 起動には
+     参照元が 無いので、それを 見て 区別する。 */
+  var fromIcon = !document.referrer;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+  if (fromIcon && standalone) {
     location.replace('app/');
   }
 </script>
