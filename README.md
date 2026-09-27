@@ -38,6 +38,7 @@
 | `app/manifest.json` | ホーム画面に追加したときの名前・アイコン・表示方法 |
 | `tools/build_cat_sheet.py` | 生成AIの出力から背景除去・整列を行う前処理 |
 | `docs/` | 画像を作り直すときの生成プロンプト |
+| `app/images/title.jpg` | タイトル画面の 絵（たて 2:3）。ロゴは `app/images/logo.png` を 置くと 文字の かわりに 出る（なければ 文字の まま） |
 | `docs/title-prompts.md` | 猫街ろまんの タイトル画面（キービジュアル `title.jpg`・ロゴ `logo.png`）の 生成プロンプト |
 
 ### ホーム画面に追加している場合

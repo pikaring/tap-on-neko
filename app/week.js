@@ -258,6 +258,7 @@ function setBg(key) {
   layer.classList.toggle('is-chalk', !!bg.chalk);
   layer.classList.toggle('is-dark', !!bg.dark);
   layer.dataset.bg = key;
+  layer.classList.toggle('is-title', key === 'title');
   if (bg.image) {
     loadImage(bg.image, function (ok) {
       if (ok && layer.dataset.bg === key) { layer.style.backgroundImage = 'url("' + bg.image + '")'; }
@@ -348,6 +349,7 @@ function panel(cls) {
   ui.wkWindow.hidden = true;
   ui.wkPanel.hidden = false;
   ui.wkPanel.className = 'wk-panel' + (cls ? ' ' + cls : '');
+  document.body.classList.toggle('is-title', /(^| )is-title( |$)/.test(cls || ''));
   ui.wkPanel.textContent = '';
   return ui.wkPanel;
 }
@@ -1357,24 +1359,40 @@ function showTitle() {
   used = {};
   updateHeader();
   resetStage();
-  setBg('ending');
-  var box = panel('is-full is-title');
-  box.appendChild(mk('h1', 'wk-title', '猫街ろまん'));
-  box.appendChild(mk('p', 'wk-title__sub', '〜Cat city Romance〜'));
-  box.appendChild(mk('p', 'wk-title__lead', 'ねこと くらす 街の、ちいさな 毎日。'));
+  setBg('title');
+  var box = panel('is-title');
+
+  /* ロゴ：images/logo.png が 読めたら 絵に、読めなければ 文字の まま（読みあげは 文字） */
+  var head = mk('div', 'wk-title__head');
+  var h1 = mk('h1', 'wk-title');
+  h1.appendChild(mk('span', 'wk-title__a', '猫街'));
+  h1.appendChild(mk('span', 'wk-title__b', 'ろまん'));
+  head.appendChild(h1);
+  head.appendChild(mk('p', 'wk-title__sub', '〜Cat city Romance〜'));
+  box.appendChild(head);
+  loadImage('images/logo.png', function (ok) {
+    if (!ok || !head.isConnected) { return; }
+    var img = mk('img', 'wk-title__logo');
+    img.src = 'images/logo.png';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    head.insertBefore(img, h1);
+    head.classList.add('has-logo');
+  });
+
+  if (save.best) {
+    var best = mk('button', 'wk-title__best');
+    best.type = 'button';
+    best.textContent = '🏆 ハイスコア ' + fmt(save.best.total) + '（' +
+      WEEK.owners[save.best.owner].name + '・' + (save.best.catName || WEEK.cats[save.best.cat].name) + '）';
+    best.addEventListener('click', showRecords);
+    box.appendChild(best);
+  }
+
   var btns = mk('div', 'wk-title__btns');
   box.appendChild(btns);
-  button(btns, 'wk-btn--go', '📅', '一週間モード',
-    'ナオ・フミ・マキ・チカと 7日間\nハイスコアを めざす' + (save.run ? '（つづき あり）' : ''), weekMenu);
-  button(btns, 'wk-btn--endless', '♾️', 'エンドレスモード',
-    'じかん せいげん なし\nのんびり ねこの おせわ', function () { location.href = 'endless.html'; });
-  if (save.best) {
-    box.appendChild(mk('p', 'wk-title__best', '一週間の ハイスコア  ' + fmt(save.best.total) + '（' +
-      WEEK.owners[save.best.owner].name + '・' + (save.best.catName || WEEK.cats[save.best.cat].name) + '）'));
-    var rec = mk('div', 'wk-title__btns');
-    box.appendChild(rec);
-    button(rec, 'wk-btn--sub', '🏆', 'きろく', '', showRecords);
-  }
+  button(btns, 'wk-btn--go', '📅', '一週間モード', save.run ? 'つづき あり' : '7日間で ハイスコア', weekMenu);
+  button(btns, 'wk-btn--endless', '♾️', 'エンドレスモード', 'のんびり おせわ', function () { location.href = 'endless.html'; });
 }
 
 /** 一週間モード：つづきが あれば えらぶ */
