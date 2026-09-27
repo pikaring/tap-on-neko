@@ -402,32 +402,102 @@ body {
   margin-top: 12px;
 }
 
-/* ========== タイトル ========== */
-.wk-title {
-  margin: 4px 0 0;
-  text-align: center;
-  font-size: clamp(36px, 11vw, 64px);
-  color: var(--c-header);
-  line-height: 1.1;
+/* ========== タイトル ==========
+   絵（images/title.jpg・たて 2:3）を 画面の 高さいっぱいに 出し、
+   ロゴを 猫の 雲の 下（上から 26〜36%）に、ボタンを 下はしに 重ねる（throw-on-tako と 同じ 形） */
+body.is-title { background: #7a5a3a; }            /* 横長の 画面で 絵の 左右に 見える 色 */
+
+.wk-bg.is-title {
+  left: 50%;
+  right: auto;
+  width: min(100%, 66.7dvh);                        /* 横長の 画面では まんなかに たて長の まま */
+  transform: translateX(-50%);
+  background-position: center top;
 }
+
+body.is-title .wk-panel.is-title {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-height: none;
+  overflow: hidden;
+  padding: max(27dvh, 8px) 16px max(3dvh, 12px);   /* 猫の 雲（上から 5〜26%）に かからない ように */
+  background: none;
+  border: 0;
+}
+
+.wk-title__head { text-align: center; max-width: 100%; }
+
+.wk-title {
+  margin: 0;
+  font-size: min(14vw, 9dvh, 88px);
+  line-height: 1.05;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  -webkit-text-stroke: .14em #fff8ec;
+  paint-order: stroke fill;
+  text-shadow: 0 .08em 0 #3a2a20;
+}
+.wk-title__a { color: #2f5d3a; }
+.wk-title__b { color: #d0526b; }
+
 .wk-title__sub {
-  margin: 4px auto 0;
+  margin: 6px auto 0;
   width: fit-content;
   padding: 2px 18px;
-  font-size: clamp(20px, 5.4vw, 30px);
+  font-size: min(4.4vw, 3dvh, 26px);
+  letter-spacing: .03em;
   background: #ffe36e;
-  color: var(--c-header);
-  border: 4px solid var(--c-header);
+  color: #2f5d3a;
+  border: 4px solid #3a2a20;
   border-radius: 999px;
 }
-.wk-title__lead, .wk-title__best {
-  text-align: center;
-  white-space: pre-line;
-  font-size: clamp(17px, 4.4vw, 24px);
-  margin: 10px 0 0;
+
+/* ロゴの 画像（読めた ときだけ）。文字の タイトルは 読みあげ用に のこして 見えなく する */
+.wk-title__logo {
+  display: block;
+  width: min(92vw, 520px, 60dvh);
+  height: auto;
+  margin: 0 auto;
 }
-.wk-title__best { color: var(--c-go); }
+.wk-title__head.has-logo .wk-title,
+.wk-title__head.has-logo .wk-title__sub {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wk-title__best {
+  min-height: 44px;
+  padding: 4px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(14px, 3.8vw, 18px);
+  color: #3a2a20;
+  background: rgba(255, 248, 236, .92);
+  border: 3px solid #3a2a20;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 .wk-title__btns { display: grid; gap: 12px; margin-top: 12px; }
+
+/* タイトル画面では 2つの ボタンを よこに ならべて 下に よせる（4人を かくさない） */
+body.is-title .wk-title__btns {
+  width: 100%;
+  max-width: min(560px, 66.7dvh - 24px);          /* 絵の はばから はみ出さない */
+  margin-top: auto;
+  grid-template-columns: 1fr 1fr;
+}
+body.is-title .wk-title__btns .wk-btn { min-height: 88px; padding: 6px 8px; font-size: min(4.6vw, 3.2dvh, 26px); white-space: nowrap; }
 
 .wk-link {
   display: block;
@@ -692,3 +762,54 @@ body {
   font-size: clamp(56px, 16vw, 88px);
   line-height: 1.2;
 }
+
+/* ねこの なまえを きめる */
+.wk-name__cat {
+  width: clamp(96px, 30vw, 150px);
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  font-size: 64px;
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  background-position: 0 0;
+}
+
+.wk-name { display: grid; gap: 4px; margin-top: 6px; }
+.wk-name__label { font-size: clamp(16px, 4.2vw, 20px); color: var(--c-sub); }
+
+.wk-name__input {
+  width: 100%;
+  min-height: 64px;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(26px, 7vw, 38px);   /* 16px 以上で iPhone の 自動ズームを ふせぐ */
+  color: var(--c-text);
+  background: #fff;
+  border: 5px solid var(--c-line);
+  border-radius: 18px;
+  user-select: text;
+}
+.wk-name__input:focus-visible { outline: 6px solid #ffe36e; outline-offset: 2px; }
+
+.wk-name__hint { margin: 10px 0 4px; font-size: clamp(15px, 4vw, 19px); color: var(--c-sub); }
+
+.wk-name__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.wk-chip {
+  min-height: 48px;
+  padding: 4px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(18px, 4.8vw, 24px);
+  color: var(--c-header);
+  background: #fff;
+  border: 4px solid var(--c-header);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.wk-chip:active { transform: translateY(2px); }

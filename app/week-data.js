@@ -109,7 +109,8 @@ var WEEK = {
     school:    { image: '',                        color: '#2f5d3a', chalk: true },
     shotengai: { image: 'images/bg-shotengai.jpg', color: '#f2c37b' },
     night:     { image: 'images/room.jpg',         color: '#3a3558', pos: 'left bottom', dark: true },
-    ending:    { image: 'images/bg-road-cats.jpg', color: '#a8d4e6' }
+    ending:    { image: 'images/bg-road-cats.jpg', color: '#a8d4e6' },
+    title:     { image: 'images/title.jpg',        color: '#f0a24a' }   /* タイトル画面（たて 2:3） */
   },
 
   /* 立ち絵（images/people/）。読めない ときは 名前の 札 */

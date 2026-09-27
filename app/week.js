@@ -23,7 +23,7 @@ var CATEGORIES = [
 ];
 
 function emptySave() {
-  return { run: null, best: null, combos: {}, plays: 0 };
+  return { run: null, best: null, combos: {}, plays: 0, names: {} };
 }
 
 function loadWeekSave() {
@@ -41,6 +41,11 @@ function loadWeekSave() {
         });
       }
       if (typeof data.plays === 'number') { save.plays = data.plays; }
+      if (data.names && typeof data.names === 'object') {
+        Object.keys(data.names).forEach(function (k) {
+          if (WEEK.cats[k] && typeof data.names[k] === 'string') { save.names[k] = cleanName(data.names[k]); }
+        });
+      }
     }
     return save;
   } catch (e) {
@@ -122,6 +127,21 @@ function daySlots(d) {
   return WEEK.days[d].slots || SLOTS.length;
 }
 
+/* ---------- ねこの なまえ ---------- */
+var NAME_MAX = 8;   /* なまえの 長さの 上限（文字） */
+var NAME_IDEAS = ['タマ', 'ミケ', 'モモ', 'ソラ', 'きなこ', 'こむぎ', 'ちゃちゃ', 'おもち'];
+
+/** 入力された なまえを ととのえる（前後の 空白・改行を とり、長すぎたら 切る） */
+function cleanName(text) {
+  var t = String(text || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+  return Array.from(t).slice(0, NAME_MAX).join('');
+}
+
+/** その 1しゅうかんの ねこの なまえ（つけて いなければ 柄の なまえ） */
+function catName(r) {
+  return (r && r.catName) || WEEK.cats[r.cat].name;
+}
+
 function runTotal(r) {
   return CATEGORIES.reduce(function (sum, c) { return sum + (r.score[c.key] || 0); }, 0);
 }
@@ -158,7 +178,7 @@ function fill(text) {
   if (!run) { return text; }
   return String(text)
     .replace(/\{me\}/g, WEEK.owners[run.owner].name)
-    .replace(/\{cat\}/g, WEEK.cats[run.cat].name);
+    .replace(/\{cat\}/g, catName(run));
 }
 
 /** 画像は 読めた ときだけ つかう */
@@ -238,6 +258,7 @@ function setBg(key) {
   layer.classList.toggle('is-chalk', !!bg.chalk);
   layer.classList.toggle('is-dark', !!bg.dark);
   layer.dataset.bg = key;
+  layer.classList.toggle('is-title', key === 'title');
   if (bg.image) {
     loadImage(bg.image, function (ok) {
       if (ok && layer.dataset.bg === key) { layer.style.backgroundImage = 'url("' + bg.image + '")'; }
@@ -328,6 +349,7 @@ function panel(cls) {
   ui.wkWindow.hidden = true;
   ui.wkPanel.hidden = false;
   ui.wkPanel.className = 'wk-panel' + (cls ? ' ' + cls : '');
+  document.body.classList.toggle('is-title', /(^| )is-title( |$)/.test(cls || ''));
   ui.wkPanel.textContent = '';
   return ui.wkPanel;
 }
@@ -394,7 +416,7 @@ function say(lines, done) {
       setCat(line.pose || 'idle');
       catBounce();
       setSpeaking(null);
-      name = WEEK.cats[run.cat].name;
+      name = catName(run);
     } else {
       setSpeaking(null);
     }
@@ -904,7 +926,7 @@ function playKakurenbo(g, done) {
     boxes.forEach(function (b) { b.disabled = true; b.classList.remove('is-open', 'is-ok', 'is-ng'); b.style.transitionDuration = ms + 'ms'; });
     catBox = pick(boxes);
     catBox.classList.add('is-open');
-    ui2.info.textContent = round + 'かいめ  ' + WEEK.cats[run.cat].name + 'は ここ！';
+    ui2.info.textContent = round + 'かいめ  ' + catName(run) + 'は ここ！';
     wait(1200, function () {
       catBox.classList.remove('is-open');
       ui2.info.textContent = round + 'かいめ  よく 見てね…';
@@ -988,17 +1010,17 @@ function scoreSlot(res, ctx) {
     if (cat.bonus && cat.bonus[ctx.time]) {
       var add3 = Math.round(pts * (cat.bonus[ctx.time] - 1));
       pts += add3;
-      lines.push({ label: cat.name + '（' + cat.trait + '）', value: '+' + fmt(add3) });
+      lines.push({ label: catName(run) + '（' + cat.trait + '）', value: '+' + fmt(add3) });
     }
     if (cat.random && (ctx.time === 'morning' || ctx.time === 'night')) {
       var m = Math.round((cat.random[0] + Math.random() * (cat.random[1] - cat.random[0])) * 10) / 10;
       var add4 = Math.round(pts * (m - 1));
       pts += add4;
-      lines.push({ label: cat.name + '（' + cat.trait + ' ×' + m + '）', value: (add4 >= 0 ? '+' : '−') + fmt(Math.abs(add4)) });
+      lines.push({ label: catName(run) + '（' + cat.trait + ' ×' + m + '）', value: (add4 >= 0 ? '+' : '−') + fmt(Math.abs(add4)) });
     }
     if (cat.nightly && ctx.time === 'night') {
       pts += cat.nightly;
-      lines.push({ label: cat.name + '（' + cat.trait + '）', value: '+' + cat.nightly });
+      lines.push({ label: catName(run) + '（' + cat.trait + '）', value: '+' + cat.nightly });
     }
   }
   var item = run.item && WEEK.items[run.item];
@@ -1284,7 +1306,7 @@ function showFinal() {
   var comboKey = r.owner + '|' + r.cat;
   var newBest = !save.best || total > save.best.total;
   var newCombo = !(save.combos[comboKey] >= total);
-  if (newBest) { save.best = { total: total, owner: r.owner, cat: r.cat }; }
+  if (newBest) { save.best = { total: total, owner: r.owner, cat: r.cat, catName: catName(r) }; }
   if (newCombo) { save.combos[comboKey] = total; }
   save.plays++;
   save.run = null;
@@ -1298,7 +1320,7 @@ function showFinal() {
   var box = panel('is-full');
   box.appendChild(mk('p', 'wk-result__title', '一週間の けっか'));
   var item = r.item && WEEK.items[r.item];
-  box.appendChild(mk('p', 'wk-result__who', WEEK.owners[r.owner].name + ' と ' + WEEK.cats[r.cat].name +
+  box.appendChild(mk('p', 'wk-result__who', WEEK.owners[r.owner].name + ' と ' + catName(r) +
     (item ? '  ' + item.icon + ' ' + item.name : '')));
   var list = mk('dl', 'wk-result__list');
   CATEGORIES.forEach(function (c) {
@@ -1337,24 +1359,40 @@ function showTitle() {
   used = {};
   updateHeader();
   resetStage();
-  setBg('ending');
-  var box = panel('is-full is-title');
-  box.appendChild(mk('h1', 'wk-title', '猫街ろまん'));
-  box.appendChild(mk('p', 'wk-title__sub', '〜Cat city Romance〜'));
-  box.appendChild(mk('p', 'wk-title__lead', 'ねこと くらす 街の、ちいさな 毎日。'));
+  setBg('title');
+  var box = panel('is-title');
+
+  /* ロゴ：images/logo.png が 読めたら 絵に、読めなければ 文字の まま（読みあげは 文字） */
+  var head = mk('div', 'wk-title__head');
+  var h1 = mk('h1', 'wk-title');
+  h1.appendChild(mk('span', 'wk-title__a', '猫街'));
+  h1.appendChild(mk('span', 'wk-title__b', 'ろまん'));
+  head.appendChild(h1);
+  head.appendChild(mk('p', 'wk-title__sub', '〜Cat city Romance〜'));
+  box.appendChild(head);
+  loadImage('images/logo.png', function (ok) {
+    if (!ok || !head.isConnected) { return; }
+    var img = mk('img', 'wk-title__logo');
+    img.src = 'images/logo.png';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    head.insertBefore(img, h1);
+    head.classList.add('has-logo');
+  });
+
+  if (save.best) {
+    var best = mk('button', 'wk-title__best');
+    best.type = 'button';
+    best.textContent = '🏆 ハイスコア ' + fmt(save.best.total) + '（' +
+      WEEK.owners[save.best.owner].name + '・' + (save.best.catName || WEEK.cats[save.best.cat].name) + '）';
+    best.addEventListener('click', showRecords);
+    box.appendChild(best);
+  }
+
   var btns = mk('div', 'wk-title__btns');
   box.appendChild(btns);
-  button(btns, 'wk-btn--go', '📅', '一週間モード',
-    'ナオ・フミ・マキ・チカと 7日間\nハイスコアを めざす' + (save.run ? '（つづき あり）' : ''), weekMenu);
-  button(btns, 'wk-btn--endless', '♾️', 'エンドレスモード',
-    'じかん せいげん なし\nのんびり ねこの おせわ', function () { location.href = 'endless.html'; });
-  if (save.best) {
-    box.appendChild(mk('p', 'wk-title__best', '一週間の ハイスコア  ' + fmt(save.best.total) + '（' +
-      WEEK.owners[save.best.owner].name + '・' + WEEK.cats[save.best.cat].name + '）'));
-    var rec = mk('div', 'wk-title__btns');
-    box.appendChild(rec);
-    button(rec, 'wk-btn--sub', '🏆', 'きろく', '', showRecords);
-  }
+  button(btns, 'wk-btn--go', '📅', '一週間モード', save.run ? 'つづき あり' : '7日間で ハイスコア', weekMenu);
+  button(btns, 'wk-btn--endless', '♾️', 'エンドレスモード', 'のんびり おせわ', function () { location.href = 'endless.html'; });
 }
 
 /** 一週間モード：つづきが あれば えらぶ */
@@ -1366,7 +1404,7 @@ function weekMenu() {
   box.appendChild(btns);
   var r = save.run;
   button(btns, 'wk-btn--go', '🔖', 'つづきから',
-    WEEK.owners[r.owner].name + '・' + WEEK.cats[r.cat].name + '／' + WEEK.days[r.day].label + ' ' + slotName(r, r.slot),
+    WEEK.owners[r.owner].name + '・' + catName(r) + '／' + WEEK.days[r.day].label + ' ' + slotName(r, r.slot),
     function () { startRun(save.run); });
   button(btns, 'wk-btn--sub', '📖', 'はじめから', 'つづきは きえます', chooseOwner);
   button(btns, 'wk-btn--sub', '🏆', 'きろく', '16の くみあわせ', showRecords);
@@ -1434,7 +1472,7 @@ function chooseCat(owner) {
     var best = WEEK.owners[owner].best === k;
     var b = button(grid, 'wk-card' + (best ? ' is-best' : ''), '', c.name + (best ? ' 💞' : ''),
       c.trait + '\n' + c.traitNote + (k === fav ? '\n（おせわ モードの ねこ）' : ''),
-      function () { startRun(newRun(owner, k)); });
+      function () { nameCat(owner, k); });
     var face = mk('span', 'wk-card__cat');
     face.setAttribute('aria-hidden', 'true');
     face.textContent = '🐈';
@@ -1450,6 +1488,60 @@ function chooseCat(owner) {
   var go = mk('div', 'wk-quiz__next');
   box.appendChild(go);
   button(go, 'wk-btn--sub', '', 'もどる', '', chooseOwner);
+}
+
+/** ねこの なまえを きめる（入力しても、こうほを タップしても よい） */
+function nameCat(owner, pattern) {
+  var box = panel('is-full');
+  box.appendChild(mk('p', 'wk-menu__title', 'ねこの なまえは？'));
+  var face = mk('div', 'wk-name__cat');
+  face.setAttribute('aria-hidden', 'true');
+  face.textContent = '🐈';
+  loadImage('images/' + pattern + '.png', function (ok) {
+    if (!ok) { return; }
+    face.textContent = '';
+    face.style.backgroundImage = 'url("images/' + pattern + '.png")';
+    face.classList.add('is-image');
+  });
+  box.appendChild(face);
+
+  var form = mk('form', 'wk-name');
+  form.setAttribute('autocomplete', 'off');
+  var label = mk('label', 'wk-name__label', 'なまえ（' + NAME_MAX + 'もじ まで）');
+  label.setAttribute('for', 'wkCatName');
+  var input = mk('input', 'wk-name__input');
+  input.type = 'text';
+  input.id = 'wkCatName';
+  input.maxLength = NAME_MAX * 2;   /* 絵文字などは 2つぶんに 数えられるので ゆとりを もたせ、cleanName で 切る */
+  input.value = save.names[pattern] || WEEK.cats[pattern].name;
+  input.setAttribute('enterkeyhint', 'done');
+  form.appendChild(label);
+  form.appendChild(input);
+  box.appendChild(form);
+
+  box.appendChild(mk('p', 'wk-name__hint', 'タップで えらぶ ことも できます'));
+  var chips = mk('div', 'wk-name__chips');
+  [WEEK.cats[pattern].name].concat(NAME_IDEAS).forEach(function (n) {
+    var c = mk('button', 'wk-chip', n);
+    c.type = 'button';
+    c.addEventListener('click', function () { input.value = n; });
+    chips.appendChild(c);
+  });
+  box.appendChild(chips);
+
+  function decide() {
+    var name = cleanName(input.value) || WEEK.cats[pattern].name;
+    save.names[pattern] = name;
+    var r = newRun(owner, pattern);
+    r.catName = name;
+    startRun(r);
+  }
+  form.addEventListener('submit', function (e) { e.preventDefault(); input.blur(); decide(); });
+
+  var go = mk('div', 'wk-quiz__next');
+  box.appendChild(go);
+  button(go, 'wk-btn--go', '🐾', 'この なまえで はじめる', '', decide);
+  button(go, 'wk-btn--sub', '', 'もどる', '', function () { chooseCat(owner); });
 }
 
 function startRun(r) {
