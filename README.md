@@ -36,7 +36,7 @@
 | `app/images/animals.png` | クイズのかげあて用の動物9種（スプライトシート） |
 | `app/images/room.jpg` | 部屋の背景（窓・壁・床） |
 | `app/images/icon-*.png` | ホーム画面・タブ用のアイコン（`tools/make_icons.py` が生成） |
-| `tools/make_icons.py` | ロゴとねこ4匹（きじとら・はちわれ・ちゃしろ・くろ）からアイコン一式をつくる（猫街三部作で同じ図がら） |
+| `tools/make_icons.py` | ロゴとねこ3匹（きじとら・くろ・はちわれ）からアイコン一式をつくる（猫街三部作で同じ図がら） |
 | `app/manifest.json` | ホーム画面に追加したときの名前・アイコン・表示方法 |
 | `tools/build_cat_sheet.py` | 生成AIの出力から背景除去・整列を行う前処理 |
 | `docs/` | 画像を作り直すときの生成プロンプト |
@@ -360,7 +360,7 @@ var DEFAULT_CAT = 'cat-kijitora';
 全画面表示（`display: standalone`）で起動します。高齢の方がアプリのように使えるようにするためです。
 
 アイコンはOS側で角を丸く切り取られるため、白い角が残らないよう**全面を塗った四角**にしています
-（桜色から若草色のグラデーション。上にロゴ、下にねこ4匹）。`python3 tools/make_icons.py` で作り直せます。
+（桜色から若草色のグラデーション。上にロゴ、下にねこ3匹）。`python3 tools/make_icons.py` で作り直せます。
 
 ## 部屋の背景
 
