@@ -77,8 +77,33 @@ function newRun(owner, cat) {
     score: { neko: 0, gakkou: 0, tomo: 0, baito: 0 },
     friendCount: friendCount,
     dayScores: [0, 0, 0, 0, 0, 0, 0],
-    seenPrologue: false
+    seenPrologue: false,
+    schedule: makeSchedule(),
+    nightOrder: makeNightOrder()
   };
+}
+
+/** 月〜木の 授業の じゅんばん（1しゅうかんごとに ランダム） */
+function makeSchedule() {
+  return shuffle(Object.keys(WEEK.subjects));
+}
+
+/** 7日ぶんの 夜の あそび（ぜんぶ まんべんなく、同じ ものが 2日 つづかない） */
+function makeNightOrder() {
+  var out = [];
+  while (out.length < WEEK.days.length) {
+    var set = shuffle(WEEK.nightGames);
+    if (out.length && set[0] === out[out.length - 1]) { set.push(set.shift()); }
+    out = out.concat(set);
+  }
+  return out.slice(0, WEEK.days.length);
+}
+
+/** むかしの ほぞんに ない ものを おぎなう */
+function upgradeRun(r) {
+  if (!Array.isArray(r.schedule) || r.schedule.length !== Object.keys(WEEK.subjects).length) { r.schedule = makeSchedule(); }
+  if (!Array.isArray(r.nightOrder) || r.nightOrder.length !== WEEK.days.length) { r.nightOrder = makeNightOrder(); }
+  return r;
 }
 
 function runTotal(r) {
@@ -310,13 +335,14 @@ function button(parent, cls, icon, text, sub, onClick) {
    4. 台詞（まどを タップで すすむ）
    --------------------------------------------------------- */
 var sceneFriend = null;   /* その 場面の 'friend' */
+var schoolTalk = 'announce';   /* 授業まえの 台詞の しゅるい（week-data.js の friends.*.school） */
 
 function lineText(line) {
   var t = line.text || '';
   if (t.charAt(0) !== '@') { return fill(t); }
   var key = t.slice(1);
   if (line.who === 'me') { return fill(WEEK.owners[run.owner].lines[key] || ''); }
-  if (line.who === 'friend' && key === 'school') { return fill(WEEK.friends[sceneFriend].school[run.day] || ''); }
+  if (line.who === 'friend' && key === 'school') { return fill(WEEK.friends[sceneFriend].school[schoolTalk] || ''); }
   return '';
 }
 
@@ -421,6 +447,13 @@ function makeKanji() {
   return { kind: 'かんじの よみ', big: q.q, text: 'よみかたは？', answer: q.a, choices: q.c.slice(), note: q.imi || '' };
 }
 
+function makeMorning() {
+  var g = pick(WEEK.morningGenres);
+  var list = g.key === 'neko' ? WEEK.nekoQuiz : WEEK[g.key];
+  var q = draw('m-' + g.key, list);
+  return { kind: g.label, text: q.q, answer: q.a, choices: q.c.slice() };
+}
+
 function makeNeko(speed) {
   var q = draw('neko', WEEK.nekoQuiz);
   return { kind: 'ねこクイズ', text: q.q, answer: q.a, choices: q.c.slice(), speed: !!speed, limit: 9000 };
@@ -470,7 +503,7 @@ function makeBaito() {
 var GAMES = {
   kotoba:     { title: 'ことばクイズ',   count: 3, make: makeKotoba },
   kanji:      { title: 'かんじクイズ',   count: 3, make: makeKanji },
-  neko:       { title: 'ねこクイズ',     count: 3, make: function () { return makeNeko(false); } },
+  asagohan:   { title: 'あさごはん クイズ', count: 3, make: makeMorning },
   keisan:     { title: 'けいさん はやおし', count: 4, make: makeKeisan },
   silhouette: { title: 'かげあて はやおし', count: 4, make: makeSilhouette },
   baito:      { title: 'おかいけい はやおし', count: 4, make: makeBaito },
@@ -478,6 +511,8 @@ var GAMES = {
   taikai:     { title: 'ねこクイズ はやおし', count: 5, make: function () { return makeNeko(true); } },
   jarashi:    { title: 'ねこじゃらし',   tap: true, targets: 8, life: 2200, emoji: '🪶', hit: 'ニャッ！', cat: true },
   bat:        { title: 'ボールを うつ', tap: true, targets: 8, life: 1700, emoji: '⚾', hit: 'カキーン！' },
+  oboeru:     { title: 'じゅんばん おぼえ', memory: true, rounds: [3, 4, 5], toys: ['🧶', '🐭', '🪶', '🎾'], per: 30 },
+  kakurenbo:  { title: 'ねこの かくれんぼ', shell: true, rounds: [3, 5, 7], speed: [520, 420, 330], per: 120 },
   party:      { title: 'みんなで ねこじゃらし', tap: true, targets: 10, life: 2000, emoji: '🪶', hit: 'ニャッ！', cat: true }
 };
 
@@ -491,6 +526,8 @@ function stopTimer() { if (timer) { cancelAnimationFrame(timer); timer = null; }
 function playGame(name, done) {
   var g = GAMES[name];
   if (g.tap) { playTap(g, done); return; }
+  if (g.memory) { playOboeru(g, done); return; }
+  if (g.shell) { playKakurenbo(g, done); return; }
   var total = 0, speedTotal = 0, n = 0;
   var box = panel('is-quiz');
 
@@ -691,6 +728,208 @@ function playTap(g, done) {
 }
 
 /* ---------------------------------------------------------
+   7b. ミニゲーム（じゅんばん おぼえ）
+       おもちゃが ひかった じゅんに タップ。3・4・5こ の 3回
+   --------------------------------------------------------- */
+function tapPanel(g, help) {
+  var box = panel('is-tap');
+  box.appendChild(mk('p', 'wk-quiz__title', g.title));
+  box.appendChild(mk('p', 'wk-tap__help', help));
+  var info = mk('p', 'wk-tap__info', '');
+  box.appendChild(info);
+  var go = mk('div', 'wk-quiz__next');
+  box.appendChild(go);
+  return { box: box, info: info, go: go };
+}
+
+function wait(ms, fn) { setTimeout(fn, ms); }
+
+function playOboeru(g, done) {
+  var ui2 = tapPanel(g, 'おもちゃが ひかった じゅんばんを\nおぼえて、同じ じゅんに タップ！');
+  var arena = ui.wkArena;
+  var total = 0, round = 0, pads = [];
+  button(ui2.go, 'wk-btn--go', '▶', 'スタート', '', start);
+
+  function start() {
+    ui2.go.textContent = '';
+    setFigure('left', null);   /* おもちゃを 見やすく */
+    arena.hidden = false;
+    arena.textContent = '';
+    var grid = mk('div', 'wk-pads');
+    g.toys.forEach(function (t, i) {
+      var b = mk('button', 'wk-pad', t);
+      b.type = 'button';
+      b.disabled = true;
+      b.addEventListener('click', function () { press(i); });
+      grid.appendChild(b);
+      pads.push(b);
+    });
+    arena.appendChild(grid);
+    wait(500, nextRound);
+  }
+
+  var seq = [], pos = 0, input = false;
+
+  function lock(on) { pads.forEach(function (p) { p.disabled = on; }); }
+
+  function flash(i, ms) {
+    pads[i].classList.add('is-lit');
+    wait(ms, function () { pads[i].classList.remove('is-lit'); });
+  }
+
+  function nextRound() {
+    if (round >= g.rounds.length) { finish(); return; }
+    var len = g.rounds[round];
+    round++;
+    seq = [];
+    for (var k = 0; k < len; k++) { seq.push(rand(0, pads.length - 1)); }
+    pos = 0;
+    input = false;
+    lock(true);
+    ui2.info.textContent = round + 'かいめ（' + len + 'こ）  よく 見てね';
+    setCat('thinking');
+    var t = 400;
+    seq.forEach(function (i) {
+      wait(t, function () { flash(i, 480); });
+      t += 700;
+    });
+    wait(t, function () {
+      input = true;
+      lock(false);
+      ui2.info.textContent = round + 'かいめ  おなじ じゅんに タップ！';
+    });
+  }
+
+  function press(i) {
+    if (!input) { return; }
+    flash(i, 200);
+    if (i !== seq[pos]) {
+      input = false;
+      lock(true);
+      pads[seq[pos]].classList.add('is-answer');
+      ui2.info.textContent = 'ざんねん！';
+      setCat('thinking');
+      wait(1100, function () { pads[seq[pos]].classList.remove('is-answer'); nextRound(); });
+      return;
+    }
+    pos++;
+    if (pos >= seq.length) {
+      input = false;
+      lock(true);
+      var p = g.per * seq.length;
+      total += p;
+      ui2.info.textContent = 'せいかい！  ＋' + p;
+      setCat('celebrate');
+      catBounce();
+      wait(900, nextRound);
+    }
+  }
+
+  function finish() {
+    arena.hidden = true;
+    arena.textContent = '';
+    done({ points: total, speedPoints: 0, mult: 1, title: g.title });
+  }
+}
+
+/* ---------------------------------------------------------
+   7c. ミニゲーム（ねこの かくれんぼ）
+       ねこが はいった はこを 目で おいかけて タップ。3回
+   --------------------------------------------------------- */
+var SHELL_X = [6, 37, 68];   /* はこの 左はし（%） */
+
+function playKakurenbo(g, done) {
+  var ui2 = tapPanel(g, 'ねこが はいった はこを\n目で おいかけて タップ！');
+  var arena = ui.wkArena;
+  var total = 0, round = 0, boxes = [], catBox = null, input = false;
+  button(ui2.go, 'wk-btn--go', '▶', 'スタート', '', start);
+
+  function start() {
+    ui2.go.textContent = '';
+    setFigure('left', null);   /* はこを 見やすく */
+    arena.hidden = false;
+    arena.textContent = '';
+    setCat(null);
+    for (var i = 0; i < 3; i++) {
+      var b = mk('button', 'wk-shell');
+      b.type = 'button';
+      b.disabled = true;
+      b.spot = i;
+      b.style.left = SHELL_X[i] + '%';
+      var catFace = mk('span', 'wk-shell__cat', '🐈');
+      if (imgCache['images/' + run.cat + '.png'] === true) {   /* えらんだ ねこの 絵（おすわり） */
+        catFace.textContent = '';
+        catFace.classList.add('is-image');
+        catFace.style.backgroundImage = 'url("images/' + run.cat + '.png")';
+      }
+      b.appendChild(catFace);
+      b.appendChild(mk('span', 'wk-shell__box', '📦'));
+      b.addEventListener('click', pickBox.bind(null, b));
+      arena.appendChild(b);
+      boxes.push(b);
+    }
+    wait(400, nextRound);
+  }
+
+  function nextRound() {
+    if (round >= g.rounds.length) { finish(); return; }
+    var swaps = g.rounds[round];
+    var ms = g.speed[round];
+    round++;
+    boxes.forEach(function (b) { b.disabled = true; b.classList.remove('is-open', 'is-ok', 'is-ng'); b.style.transitionDuration = ms + 'ms'; });
+    catBox = pick(boxes);
+    catBox.classList.add('is-open');
+    ui2.info.textContent = round + 'かいめ  ' + WEEK.cats[run.cat].name + 'は ここ！';
+    wait(1200, function () {
+      catBox.classList.remove('is-open');
+      ui2.info.textContent = round + 'かいめ  よく 見てね…';
+      var n = 0;
+      (function swap() {
+        if (n >= swaps) {
+          wait(ms, function () {
+            input = true;
+            boxes.forEach(function (b) { b.disabled = false; });
+            ui2.info.textContent = round + 'かいめ  どの はこ？';
+          });
+          return;
+        }
+        n++;
+        var a = rand(0, 2), c = (a + rand(1, 2)) % 3;
+        var ba = boxes.filter(function (b) { return b.spot === a; })[0];
+        var bc = boxes.filter(function (b) { return b.spot === c; })[0];
+        ba.spot = c; bc.spot = a;
+        ba.style.left = SHELL_X[c] + '%';
+        bc.style.left = SHELL_X[a] + '%';
+        wait(ms + 60, swap);
+      })();
+    });
+  }
+
+  function pickBox(b) {
+    if (!input) { return; }
+    input = false;
+    boxes.forEach(function (x) { x.disabled = true; });
+    catBox.classList.add('is-open');
+    if (b === catBox) {
+      total += g.per;
+      b.classList.add('is-ok');
+      ui2.info.textContent = 'みつけた！  ＋' + g.per;
+    } else {
+      b.classList.add('is-ng');
+      ui2.info.textContent = 'ざんねん、こっち でした';
+    }
+    wait(1300, nextRound);
+  }
+
+  function finish() {
+    arena.hidden = true;
+    arena.textContent = '';
+    setCat('happy');
+    done({ points: total, speedPoints: 0, mult: 1, title: g.title });
+  }
+}
+
+/* ---------------------------------------------------------
    8. てんすうの けいさん（飼い主・ねこの とくい）
    --------------------------------------------------------- */
 /**
@@ -726,7 +965,7 @@ function scoreSlot(res, ctx) {
       pts += add3;
       lines.push({ label: cat.name + '（' + cat.trait + '）', value: '+' + fmt(add3) });
     }
-    if (cat.random) {
+    if (cat.random && (ctx.time === 'morning' || ctx.time === 'night')) {
       var m = Math.round((cat.random[0] + Math.random() * (cat.random[1] - cat.random[0])) * 10) / 10;
       var add4 = Math.round(pts * (m - 1));
       pts += add4;
@@ -797,7 +1036,7 @@ function slotMorning() {
   }
   say(lines, function () {
     setCat('thinking');
-    playGame('neko', function (res) {
+    playGame('asagohan', function (res) {
       setCat('eating');
       showSlotResult(res, { category: 'neko', time: 'morning' }, function () {
         say(WEEK.scenes.morningDone, advance);
@@ -835,7 +1074,12 @@ function slotDay() {
     });
     return;
   }
-  /* 月〜金：授業 */
+  /* 月〜金：授業（月〜木の 科目は run.schedule の じゅん） */
+  if (spec.game === 'subject') {
+    var subj = run.schedule[run.day] || 'kotoba';
+    spec = { game: subj, talk: spec.talk, title: WEEK.subjects[subj].title, note: WEEK.subjects[subj].note };
+  }
+  schoolTalk = spec.talk === 'subject' ? spec.game : spec.talk;
   sceneFriend = friendOfDay(run.day);
   setCat(null);
   setFigure('right', null);
@@ -902,9 +1146,11 @@ function doBaito() {
 function slotNight() {
   setFigure('right', null);
   setFigure('left', run.owner, 'normal');
+  var game = run.nightOrder[run.day] || 'jarashi';
   say(WEEK.scenes.home, function () {
     setCat('noon');
-    playGame('jarashi', function (res) {
+    playGame(game, function (res) {
+      setFigure('left', run.owner, 'happy');
       setCat('happy');
       showSlotResult(res, { category: 'neko', time: 'night' }, function () {
         say(WEEK.scenes.sleep, advance);
@@ -1125,7 +1371,7 @@ function chooseCat(owner) {
 }
 
 function startRun(r) {
-  run = r;
+  run = upgradeRun(r);
   used = {};
   save.run = run;
   writeWeekSave();
