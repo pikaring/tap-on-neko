@@ -449,7 +449,36 @@ var SILHOUETTES = [
   { cell: [1, 2], emoji: '🐢', choices: ['かめ', 'かに', 'かえる'] },
   { cell: [2, 0], emoji: '🦋', choices: ['ちょう', 'とんぼ', 'はち'] },
   { cell: [2, 1], emoji: '🐴', choices: ['うま', 'うし', 'ぶた'] },
-  { cell: [2, 2], emoji: '🐷', choices: ['ぶた', 'いぬ', 'ひつじ'] }
+  { cell: [2, 2], emoji: '🐷', choices: ['ぶた', 'いぬ', 'ひつじ'] },
+
+  /* ここから 猫街ろまんの 追加（images/silhouette-*.png。3×3。docs/asset-prompts.md） */
+  { sheet: 'silhouette-animals2', cell: [0, 0], emoji: '🦁', choices: ['ライオン', 'トラ', 'くま'] },
+  { sheet: 'silhouette-animals2', cell: [0, 1], emoji: '🐧', choices: ['ペンギン', 'からす', 'あひる'] },
+  { sheet: 'silhouette-animals2', cell: [0, 2], emoji: '🦘', choices: ['カンガルー', 'うさぎ', 'しか'] },
+  { sheet: 'silhouette-animals2', cell: [1, 0], emoji: '🐳', choices: ['くじら', 'いるか', 'さめ'] },
+  { sheet: 'silhouette-animals2', cell: [1, 1], emoji: '🐊', choices: ['わに', 'とかげ', 'へび'] },
+  { sheet: 'silhouette-animals2', cell: [1, 2], emoji: '🦉', choices: ['ふくろう', 'はと', 'にわとり'] },
+  { sheet: 'silhouette-animals2', cell: [2, 0], emoji: '🐿️', choices: ['りす', 'ねずみ', 'きつね'] },
+  { sheet: 'silhouette-animals2', cell: [2, 1], emoji: '🐑', choices: ['ひつじ', 'やぎ', 'うし'] },
+  { sheet: 'silhouette-animals2', cell: [2, 2], emoji: '🐼', choices: ['パンダ', 'ねこ', 'うさぎ'] },
+  { sheet: 'silhouette-sea', cell: [0, 0], emoji: '🐙', choices: ['たこ', 'いか', 'くらげ'] },
+  { sheet: 'silhouette-sea', cell: [0, 1], emoji: '🦑', choices: ['いか', 'たこ', 'さかな'] },
+  { sheet: 'silhouette-sea', cell: [0, 2], emoji: '🦀', choices: ['かに', 'えび', 'くも'] },
+  { sheet: 'silhouette-sea', cell: [1, 0], emoji: '🦐', choices: ['えび', 'ざりがに', 'かに'] },
+  { sheet: 'silhouette-sea', cell: [1, 1], emoji: '🪼', choices: ['くらげ', 'たこ', 'きのこ'] },
+  { sheet: 'silhouette-sea', cell: [1, 2], emoji: '🌊', choices: ['たつのおとしご', 'うなぎ', 'えび'] },
+  { sheet: 'silhouette-sea', cell: [2, 0], emoji: '⭐', choices: ['ひとで', 'かに', 'ほし'] },
+  { sheet: 'silhouette-sea', cell: [2, 1], emoji: '🐡', choices: ['ふぐ', 'ボール', 'はりねずみ'] },
+  { sheet: 'silhouette-sea', cell: [2, 2], emoji: '🐟', choices: ['まぐろ', 'さめ', 'いるか'] },
+  { sheet: 'silhouette-town', cell: [0, 0], emoji: '🚲', choices: ['じてんしゃ', 'バイク', 'くるま'] },
+  { sheet: 'silhouette-town', cell: [0, 1], emoji: '☂️', choices: ['かさ', 'ぼうし', 'きのこ'] },
+  { sheet: 'silhouette-town', cell: [0, 2], emoji: '🫖', choices: ['やかん', 'きゅうす', 'なべ'] },
+  { sheet: 'silhouette-town', cell: [1, 0], emoji: '✂️', choices: ['はさみ', 'ペンチ', 'めがね'] },
+  { sheet: 'silhouette-town', cell: [1, 1], emoji: '👓', choices: ['めがね', 'サングラス', 'はさみ'] },
+  { sheet: 'silhouette-town', cell: [1, 2], emoji: '🎸', choices: ['ギター', 'バイオリン', 'ラケット'] },
+  { sheet: 'silhouette-town', cell: [2, 0], emoji: '✈️', choices: ['ひこうき', 'とり', 'ヘリコプター'] },
+  { sheet: 'silhouette-town', cell: [2, 1], emoji: '🚃', choices: ['でんしゃ', 'バス', 'トラック'] },
+  { sheet: 'silhouette-town', cell: [2, 2], emoji: '🐱', choices: ['まねきねこ', 'たぬきの おきもの', 'だるま'] }
 ];
 
 /* 同じ 1しゅうかんで なるべく 同じ もんだいを ださない */
@@ -604,10 +633,12 @@ function playGame(name, done) {
       shadow = mk('div', 'wk-shadow is-dark');
       var s = q.silhouette;
       shadow.textContent = s.emoji;
-      loadImage('images/animals.png', function (ok) {
+      var sheetUrl = 'images/' + (s.sheet || 'animals') + '.png';
+      loadImage(sheetUrl, function (ok) {
         if (!ok) { return; }
         shadow.textContent = '';
         shadow.classList.add('is-image');
+        shadow.style.backgroundImage = 'url("' + sheetUrl + '")';
         shadow.style.backgroundPosition = (s.cell[1] * 50) + '% ' + (s.cell[0] * 50) + '%';
       });
       box.appendChild(shadow);

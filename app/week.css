@@ -680,7 +680,7 @@ body.is-title .wk-title__btns .wk-btn { min-height: 88px; padding: 6px 8px; font
   background-size: 300% 300%;
   transition: filter .3s ease;
 }
-.wk-shadow.is-image { background-image: url("images/animals.png"); }
+.wk-shadow.is-image { background-image: url("images/animals.png"); }   /* シートは week.js が 問題ごとに 入れかえる */
 .wk-shadow.is-dark { filter: brightness(0); }
 
 /* タップの ミニゲーム */
