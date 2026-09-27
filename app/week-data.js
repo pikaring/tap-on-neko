@@ -145,12 +145,13 @@ var WEEK = {
   ],
 
   /* ---------- 日曜の かいもので 手に 入る アイテム（1しゅうかん ずっと きく） ----------
-     time / category / speed … どの てんすうが ふえるか。mult … ばいりつ */
+     time / category / speed … どの てんすうが ふえるか。mult … ばいりつ
+     cell … images/goods.png（3×3）の [たて, よこ]。絵が 読めない ときは icon の 絵文字 */
   items: {
-    zukan:    { name: 'ねこの ずかん',         icon: '📘', note: 'あさごはん 1.3ばい', time: 'morning',  mult: 1.3 },
-    strap:    { name: 'おそろいの ストラップ', icon: '🎀', note: 'ともだち 1.3ばい', category: 'tomo', mult: 1.3 },
-    watch:    { name: 'ストップウォッチ',       icon: '⏱️', note: 'はやおし 1.3ばい', speed: true,    mult: 1.3 },
-    jarashi:  { name: 'ふわふわ ねこじゃらし', icon: '🪶', note: 'よるの あそび 1.3ばい',    time: 'night',    mult: 1.3 }
+    zukan:    { name: 'ねこの ずかん',         icon: '📘', cell: [1, 1], note: 'あさごはん 1.3ばい', time: 'morning',  mult: 1.3 },
+    strap:    { name: 'おそろいの ストラップ', icon: '🎀', cell: [1, 2], note: 'ともだち 1.3ばい', category: 'tomo', mult: 1.3 },
+    watch:    { name: 'ストップウォッチ',       icon: '⏱️', cell: [2, 0], note: 'はやおし 1.3ばい', speed: true,    mult: 1.3 },
+    jarashi:  { name: 'ふわふわ ねこじゃらし', icon: '🪶', cell: [2, 1], note: 'よるの あそび 1.3ばい',    time: 'night',    mult: 1.3 }
   },
 
   /* ---------- ともだち（飼い主 いがいの 3人が ともだちに なる） ----------

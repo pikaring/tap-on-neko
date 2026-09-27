@@ -40,6 +40,7 @@
 | `app/manifest.json` | ホーム画面に追加したときの名前・アイコン・表示方法 |
 | `tools/build_cat_sheet.py` | 生成AIの出力から背景除去・整列を行う前処理 |
 | `docs/` | 画像を作り直すときの生成プロンプト |
+| `app/images/goods.png` | 一週間モードの あそびグッズ 9種（すずの ボール・箱・ソフトボール・かいものの アイテム4つ・かいもの ぶくろ。3×3）。けいと・ねこじゃらし・ねずみは `items.png` を 流用 |
 | `app/images/silhouette-*.png` | 一週間モードの かげあて早押しの 追加 27問（どうぶつ2・うみ・まち。3×3）。`animals.png` と あわせて 36問 |
 | `app/images/title.jpg` | タイトル画面の 絵（たて 2:3）。ロゴは `app/images/logo.png` を 置くと 文字の かわりに 出る（なければ 文字の まま） |
 | `docs/title-prompts.md` | 猫街ろまんの タイトル画面（キービジュアル `title.jpg`・ロゴ `logo.png`）の 生成プロンプト |

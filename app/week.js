@@ -200,6 +200,53 @@ function loadImage(url, cb) {
   img.src = url;
 }
 
+/* ---------- 小物の 絵（3×3の シートの 1マス） ----------
+   pic … { sheet: 'goods' | 'items' | …, cell: [たて, よこ], emoji: 読めない ときの 絵文字 } */
+var PIC = {
+  ball:     { sheet: 'goods', cell: [0, 0], emoji: '🎾' },
+  box:      { sheet: 'goods', cell: [0, 1], emoji: '📦' },
+  boxOpen:  { sheet: 'goods', cell: [0, 2], emoji: '📦' },
+  softball: { sheet: 'goods', cell: [1, 0], emoji: '⚾' },
+  fluffy:   { sheet: 'goods', cell: [2, 1], emoji: '🪶' },
+  bag:      { sheet: 'goods', cell: [2, 2], emoji: '🛍️' },
+  yarn:     { sheet: 'items', cell: [0, 1], emoji: '🧶' },   /* 部屋の 小物から 流用 */
+  jarashi:  { sheet: 'items', cell: [1, 2], emoji: '🪶' },
+  mouse:    { sheet: 'items', cell: [2, 2], emoji: '🐭' }
+};
+
+/** el に 小物の 絵を つける（読めるまでは 絵文字） */
+function setPic(el, pic) {
+  var url = 'images/' + pic.sheet + '.png';
+  el.textContent = pic.emoji;
+  el.dataset.pic = url + pic.cell.join(',');
+  loadImage(url, function (ok) {
+    if (!ok || el.dataset.pic !== url + pic.cell.join(',')) { return; }
+    el.textContent = '';
+    el.classList.add('is-pic');
+    el.style.backgroundImage = 'url("' + url + '")';
+    el.style.backgroundPosition = (pic.cell[1] * 50) + '% ' + (pic.cell[0] * 50) + '%';
+  });
+  return el;
+}
+
+/** ボタンの 中に 置く 絵（ボタンの 背景色や ふちを そのまま 生かせる） */
+function picIn(pic) {
+  var span = mk('span', 'wk-picin');
+  span.setAttribute('aria-hidden', 'true');
+  return setPic(span, pic);
+}
+
+function clearPic(el) {
+  el.dataset.pic = '';
+  el.classList.remove('is-pic');
+  el.style.backgroundImage = '';
+}
+
+/** アイテムの 絵 */
+function itemPic(item) {
+  return { sheet: 'goods', cell: item.cell, emoji: item.icon };
+}
+
 function faceUrl(key, face) {
   if (WEEK.guests[key]) { return WEEK.guests[key].image; }
   return 'images/people/' + key + '-' + (WEEK.faces.indexOf(face) >= 0 ? face : 'normal') + '.png';
@@ -585,9 +632,9 @@ var GAMES = {
   baito:      { title: 'おかいけい はやおし', count: 4, make: makeBaito },
   test:       { title: 'しょうテスト',   count: 5, list: [makeKotoba, makeKeisan, makeKanji, makeSilhouette, makeKotoba], mult: 1.5 },
   taikai:     { title: 'ねこクイズ はやおし', count: 5, make: function () { return makeNeko(true); } },
-  jarashi:    { title: 'ねこじゃらし',   tap: true, targets: 8, life: 2200, emoji: '🪶', hit: 'ニャッ！', cat: true },
-  bat:        { title: 'ボールを うつ', tap: true, targets: 8, life: 1700, emoji: '⚾', hit: 'カキーン！' },
-  oboeru:     { title: 'じゅんばん おぼえ', memory: true, rounds: [3, 4, 5], toys: ['🧶', '🐭', '🪶', '🎾'], per: 30 },
+  jarashi:    { title: 'ねこじゃらし',   tap: true, targets: 8, life: 2200, pic: 'jarashi', what: 'ねこじゃらし', hit: 'ニャッ！', cat: true },
+  bat:        { title: 'ボールを うつ', tap: true, targets: 8, life: 1700, pic: 'softball', what: 'ボール', hit: 'カキーン！' },
+  oboeru:     { title: 'じゅんばん おぼえ', memory: true, rounds: [3, 4, 5], toys: ['yarn', 'mouse', 'jarashi', 'ball'], per: 30 },
   kakurenbo:  { title: 'ねこの かくれんぼ', shell: true, rounds: [3, 5, 7], speed: [520, 420, 330], per: 120 },
   otsuri:     { title: 'おつり はやおし', count: 4, make: makeOtsuri }
 };
@@ -741,7 +788,9 @@ function playGame(name, done) {
 function playTap(g, done) {
   var box = panel('is-tap');
   box.appendChild(mk('p', 'wk-quiz__title', g.title));
-  box.appendChild(mk('p', 'wk-tap__help', g.emoji + ' が 出たら すぐ タップ！\n' + g.targets + 'かい'));
+  /* ふわふわ ねこじゃらしを 持って いる 週は、まとも その 絵に */
+  var targetPic = PIC[g.pic === 'jarashi' && run.item === 'jarashi' ? 'fluffy' : g.pic];
+  box.appendChild(mk('p', 'wk-tap__help', g.what + 'が 出たら すぐ タップ！\n' + g.targets + 'かい'));
   var info = mk('p', 'wk-tap__info', '');
   box.appendChild(info);
   var go = mk('div', 'wk-quiz__next');
@@ -762,7 +811,8 @@ function playTap(g, done) {
   function spawn() {
     if (count >= g.targets) { finish(); return; }
     count++;
-    var t = mk('button', 'wk-target', g.emoji);
+    var t = mk('button', 'wk-target');
+    t.appendChild(picIn(targetPic));
     t.type = 'button';
     t.setAttribute('aria-label', 'タップ');
     t.style.left = rand(8, 76) + '%';
@@ -835,7 +885,9 @@ function playOboeru(g, done) {
     arena.textContent = '';
     var grid = mk('div', 'wk-pads');
     g.toys.forEach(function (t, i) {
-      var b = mk('button', 'wk-pad', t);
+      var b = mk('button', 'wk-pad');
+      b.appendChild(picIn(PIC[t]));
+      b.setAttribute('aria-label', PIC[t].emoji);
       b.type = 'button';
       b.disabled = true;
       b.addEventListener('click', function () { press(i); });
@@ -941,7 +993,7 @@ function playKakurenbo(g, done) {
         catFace.style.backgroundImage = 'url("images/' + run.cat + '.png")';
       }
       b.appendChild(catFace);
-      b.appendChild(mk('span', 'wk-shell__box', '📦'));
+      b.appendChild(setPic(mk('span', 'wk-shell__box'), PIC.box));
       b.addEventListener('click', pickBox.bind(null, b));
       arena.appendChild(b);
       boxes.push(b);
@@ -1180,7 +1232,10 @@ function slotShopping() {
   setFigure('right', null);
   say(WEEK.scenes.shopping, function () {
     var box = panel('is-menu');
-    box.appendChild(mk('p', 'wk-menu__title', 'だれと かいものに 行く？'));
+    var title = mk('p', 'wk-menu__title wk-menu__title--pic');
+    title.appendChild(setPic(mk('span', 'wk-menu__pic'), PIC.bag));
+    title.appendChild(document.createTextNode('だれと かいものに 行く？'));
+    box.appendChild(title);
     var grid = mk('div', 'wk-menu__grid');
     box.appendChild(grid);
     others().forEach(function (k) {
@@ -1209,7 +1264,7 @@ function goShopping(k) {
         updateHeader();
         var box = panel('is-result');
         box.appendChild(mk('p', 'wk-result__title', 'アイテムを 手に 入れた！'));
-        box.appendChild(mk('p', 'wk-item__icon', item.icon));
+        box.appendChild(setPic(mk('p', 'wk-item__icon'), itemPic(item)));
         box.appendChild(mk('p', 'wk-result__total', item.name));
         box.appendChild(mk('p', 'wk-result__sub', item.note + '（土曜まで ずっと）'));
         var go = mk('div', 'wk-quiz__next');
