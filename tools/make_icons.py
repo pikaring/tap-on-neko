@@ -4,8 +4,8 @@
 （猫街三部作 cat-on-escape・white-squid の tools/make_icons.py と おなじ 図がら）
 
 ・桜色から 若草色への 角丸に、テーマ色（#2f5d3a）の わく
-・上に ロゴ、下に ねこ 4ひき（きじとら・はちわれ・ちゃしろ・くろ）が 座って ならぶ
-・小さい アイコン（64px 以下）は ロゴの 文字が つぶれるので、ねこ 2ひき（きじとら・はちわれ）だけ
+・上に ロゴ、下に ねこ 3びき（きじとら・くろ・はちわれ）が 座って ならぶ
+・小さい アイコン（64px 以下）は ロゴの 文字が つぶれるので、ねこ 2ひき（きじとら・くろ）だけ
 ・app/images/icon-32 / 180 / 192 / 512.png（ホーム画面用。OS が 角を 丸く 切るので わく なしの 全面ぬり）と、
   紹介ページ・ポータル用の assets/icon.png（512px）・assets/favicon.png（64px。角丸と わくつき）を 書き出す
 
@@ -28,7 +28,7 @@ RIM = (47, 93, 58)             # 紹介ページの テーマ色 #2f5d3a
 RADIUS = 0.19
 SMALL = 64
 LOGO = 'assets/logo.png'
-CATS = ['kijitora', 'hachiware', 'chashiro', 'kuro']
+CATS = ['kijitora', 'kuro', 'hachiware']
 OUT = [
     ('app/images/icon-512.png', 512),
     ('app/images/icon-192.png', 192),
