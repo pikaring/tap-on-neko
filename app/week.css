@@ -253,8 +253,8 @@ body {
   transition: transform .12s ease, background-color .12s ease;
 }
 .wk-pad:disabled { cursor: default; color: #000; }   /* 見本の あいだも うすく しない */
-.wk-pad.is-lit { background: #ffe36e; transform: scale(1.08); }
-.wk-pad.is-answer { background: #bfe3c8; box-shadow: 0 0 0 6px var(--c-ok); }
+.wk-pad.is-lit { background-color: #ffe36e; transform: scale(1.08); }
+.wk-pad.is-answer { background-color: #bfe3c8; box-shadow: 0 0 0 6px var(--c-ok); }
 
 /* ねこの かくれんぼ：はこ 3つ */
 .wk-shell {
@@ -680,7 +680,7 @@ body.is-title .wk-title__btns .wk-btn { min-height: 88px; padding: 6px 8px; font
   background-size: 300% 300%;
   transition: filter .3s ease;
 }
-.wk-shadow.is-image { background-image: url("images/animals.png"); }
+.wk-shadow.is-image { background-image: url("images/animals.png"); }   /* シートは week.js が 問題ごとに 入れかえる */
 .wk-shadow.is-dark { filter: brightness(0); }
 
 /* タップの ミニゲーム */
@@ -813,3 +813,50 @@ body.is-title .wk-title__btns .wk-btn { min-height: 88px; padding: 6px 8px; font
   touch-action: manipulation;
 }
 .wk-chip:active { transform: translateY(2px); }
+
+/* ---------- 小物の 絵（images/goods.png・items.png の 3×3 の 1マス。week.js の setPic） ---------- */
+.is-pic {
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  background-clip: content-box;   /* となりの マスが 余白に はみ出さない ように */
+}
+
+/* ボタンの 中の 絵（的・おもちゃ）。ボタンの 背景色と ふちは そのまま */
+.wk-picin {
+  position: absolute;
+  inset: 10%;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  pointer-events: none;
+}
+.wk-pad { position: relative; }
+
+.wk-shell__box.is-pic {
+  display: block;
+  left: 0;
+  right: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+}
+/* ねこが 出る ときは、ふたの あいた 箱に */
+.wk-shell.is-open .wk-shell__box.is-pic { background-position: 100% 0% !important; }
+
+.wk-item__icon.is-pic {
+  width: clamp(96px, 30vw, 140px);
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.wk-menu__title--pic { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.wk-menu__pic {
+  display: inline-block;
+  width: 1.8em;
+  height: 1.8em;
+  font-size: inherit;
+  line-height: 1.8em;
+  text-align: center;
+}
