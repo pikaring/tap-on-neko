@@ -132,7 +132,7 @@ body {
   height: 100%;
   max-height: 480px;
   aspect-ratio: 1 / 1;
-  max-width: 62%;
+  max-width: 56%;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center bottom;
@@ -165,12 +165,12 @@ body {
 /* ねこ（3×3 の スプライトシート） */
 .wk-cat {
   position: absolute;
-  left: 50%;
+  right: 0;                  /* 飼い主（左）と かさならない ように 右に 立つ */
   bottom: 0;
-  height: 62%;
+  height: 58%;
   max-height: 300px;
+  max-width: 50%;
   aspect-ratio: 1 / 1;
-  transform: translateX(-50%);
   display: grid;
   place-items: center;
   font-size: clamp(60px, 18vw, 120px);
@@ -193,8 +193,8 @@ body {
 
 .wk-cat.is-bounce { animation: wk-bounce .45s ease; }
 @keyframes wk-bounce {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  40%      { transform: translateX(-50%) translateY(-14%); }
+  0%, 100% { transform: translateY(0); }
+  40%      { transform: translateY(-14%); }
 }
 
 /* タップの ミニゲームの 場所 */

@@ -213,6 +213,7 @@ function setFigure(side, key, face) {
     return;
   }
   var url = faceUrl(key, face);
+  if (side === 'right') { ui.wkCat.hidden = true; }   /* 右は 立ち絵か ねこの どちらか 1つ */
   box.classList.add('is-shown');
   if (box.dataset.key === key && box.dataset.url === url) { return; }
   box.dataset.key = key;
@@ -241,6 +242,7 @@ var POSES = ['idle', 'happy', 'eating', 'morning', 'noon', 'night', 'welcome', '
 function setCat(pose) {
   var c = ui.wkCat;
   if (!pose) { c.hidden = true; return; }
+  setFigure('right', null);   /* ねこは 右に 立つので、右の 立ち絵は さげる */
   c.hidden = false;
   POSES.forEach(function (p) { c.classList.remove('is-pose-' + p); });
   c.classList.add('is-pose-' + (POSES.indexOf(pose) >= 0 ? pose : 'idle'));
@@ -474,9 +476,9 @@ var GAMES = {
   baito:      { title: 'おかいけい はやおし', count: 4, make: makeBaito },
   test:       { title: 'しょうテスト',   count: 5, list: [makeKotoba, makeKeisan, makeKanji, makeSilhouette, makeKotoba], mult: 1.5 },
   taikai:     { title: 'ねこクイズ はやおし', count: 5, make: function () { return makeNeko(true); } },
-  jarashi:    { title: 'ねこじゃらし',   tap: true, targets: 8, life: 2200, emoji: '🪶', hit: 'ニャッ！' },
+  jarashi:    { title: 'ねこじゃらし',   tap: true, targets: 8, life: 2200, emoji: '🪶', hit: 'ニャッ！', cat: true },
   bat:        { title: 'ボールを うつ', tap: true, targets: 8, life: 1700, emoji: '⚾', hit: 'カキーン！' },
-  party:      { title: 'みんなで ねこじゃらし', tap: true, targets: 10, life: 2000, emoji: '🪶', hit: 'ニャッ！' }
+  party:      { title: 'みんなで ねこじゃらし', tap: true, targets: 10, life: 2000, emoji: '🪶', hit: 'ニャッ！', cat: true }
 };
 
 /* ---------------------------------------------------------
@@ -662,8 +664,10 @@ function playTap(g, done) {
       hits++;
       t.classList.add('is-hit');
       t.textContent = '+' + p;
-      setCat(pick(['happy', 'celebrate', 'noon']));
-      catBounce();
+      if (g.cat) {
+        setCat(pick(['happy', 'celebrate', 'noon']));
+        catBounce();
+      }
       info.textContent = g.hit + '  ' + count + ' / ' + g.targets;
       setTimeout(function () { t.remove(); spawn(); }, 350);
     });
