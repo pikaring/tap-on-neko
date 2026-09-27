@@ -1,0 +1,694 @@
+@charset "UTF-8";
+/* =========================================================
+   猫街ろまん 〜Cat city Romance〜（一週間モード）  ―  スタイル
+   ・お世話モード（style.css）と 同じ 配色・大きな ボタン
+   ・操作は シングルタップだけ。タップ領域は 48px 以上
+   ========================================================= */
+
+:root {
+  --c-text:        #1b1b1b;
+  --c-bg:          #fff8ec;
+  --c-header:      #2f5d3a;
+  --c-header-text: #ffffff;
+  --c-go:          #c65a00;
+  --c-sub:         #444c55;
+  --c-ok:          #1f7a3d;
+  --c-ng:          #b3261e;
+  --c-line:        #2f5d3a;
+
+  --fs-text:   clamp(20px, 5vw, 30px);
+  --fs-button: clamp(22px, 5.6vw, 34px);
+  --fs-big:    clamp(34px, 10vw, 60px);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; height: 100%; }
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  font-weight: 700;
+  line-height: 1.5;
+  line-break: strict;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+[hidden] { display: none !important; }
+
+/* ========== ヘッダー ========== */
+.wk-header {
+  flex: 0 0 auto;
+  z-index: 3;
+  background: var(--c-header);
+  color: var(--c-header-text);
+  padding: 8px 12px 10px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .18);
+}
+
+.wk-days {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.wk-day {
+  width: clamp(30px, 8.5vw, 44px);
+  height: clamp(30px, 8.5vw, 44px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .18);
+  font-size: clamp(16px, 4.2vw, 22px);
+}
+.wk-day.is-holiday { color: #ffd0d0; }
+.wk-day.is-done { background: rgba(255, 255, 255, .45); color: var(--c-header); }
+.wk-day.is-done::after { content: ''; }
+.wk-day.is-today { background: #ffe36e; color: var(--c-header); box-shadow: 0 0 0 3px #fff; }
+
+.wk-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 6px;
+  font-size: clamp(18px, 4.6vw, 26px);
+}
+
+.wk-score b { font-size: 1.3em; color: #ffe36e; }
+.wk-score__label { font-size: .85em; }
+
+/* ========== ぶたい ========== */
+.wk-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.wk-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: background-color .35s ease;
+}
+
+/* 教室（絵が ない ので 黒板の 色と 木の 床） */
+.wk-bg.is-chalk {
+  background-image:
+    linear-gradient(#2f5d3a 0 58%, #6b4a2b 58% 61%, #c99a62 61% 100%) !important;
+}
+.wk-bg.is-chalk::after {
+  content: '';
+  position: absolute;
+  left: 10%; right: 10%; top: 18%; height: 32%;
+  border: 10px solid #8a5a2b;
+  border-radius: 6px;
+  background: #24493a;
+}
+
+/* よる：へやの 絵を くらく する */
+.wk-bg.is-dark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 20, 60, .45);
+}
+
+/* 立ち絵（512×512 の 上半身） */
+.wk-fig {
+  position: absolute;
+  bottom: 0;
+  height: 100%;
+  max-height: 480px;
+  aspect-ratio: 1 / 1;
+  max-width: 56%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  opacity: 0;
+  transition: opacity .3s ease, transform .3s ease, filter .3s ease;
+  pointer-events: none;
+}
+.wk-fig--left  { left: -6%;  transform: translateX(-20px); }
+.wk-fig--right { right: -6%; transform: translateX(20px); }
+.wk-fig.is-shown { opacity: 1; transform: none; }
+.wk-fig.is-dim { filter: brightness(.7); }
+
+/* 絵が 読めない ときの 名前の 札 */
+.wk-fig__tag {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  width: 58%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: clamp(22px, 6vw, 36px);
+  border: 5px solid #fff;
+}
+.wk-fig.is-image .wk-fig__tag { display: none; }
+
+/* ねこ（3×3 の スプライトシート） */
+.wk-cat {
+  position: absolute;
+  right: 0;                  /* 飼い主（左）と かさならない ように 右に 立つ */
+  bottom: 0;
+  height: 58%;
+  max-height: 300px;
+  max-width: 50%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  font-size: clamp(60px, 18vw, 120px);
+  line-height: 1;
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  pointer-events: none;
+  z-index: 1;
+}
+.wk-cat.is-image { background-image: var(--cat-image); }
+.wk-cat.is-pose-idle      { background-position:   0%   0%; }
+.wk-cat.is-pose-happy     { background-position:  50%   0%; }
+.wk-cat.is-pose-eating    { background-position: 100%   0%; }
+.wk-cat.is-pose-morning   { background-position:   0%  50%; }
+.wk-cat.is-pose-noon      { background-position:  50%  50%; }
+.wk-cat.is-pose-night     { background-position: 100%  50%; }
+.wk-cat.is-pose-welcome   { background-position:   0% 100%; }
+.wk-cat.is-pose-celebrate { background-position:  50% 100%; }
+.wk-cat.is-pose-thinking  { background-position: 100% 100%; }
+
+.wk-cat.is-bounce { animation: wk-bounce .45s ease; }
+@keyframes wk-bounce {
+  0%, 100% { transform: translateY(0); }
+  40%      { transform: translateY(-14%); }
+}
+
+/* タップの ミニゲームの 場所 */
+.wk-arena {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.wk-target {
+  position: absolute;
+  width: clamp(64px, 18vw, 96px);
+  height: clamp(64px, 18vw, 96px);
+  border-radius: 50%;
+  border: 5px solid #fff;
+  background: rgba(255, 227, 110, .92);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .25);
+  font-size: clamp(34px, 10vw, 54px);
+  line-height: 1;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  animation: wk-pop .18s ease-out;
+}
+.wk-target.is-hit { background: var(--c-ok); color: #fff; font-size: clamp(20px, 5vw, 28px); }
+.wk-target.is-miss { opacity: .3; transform: scale(.8); transition: all .2s; }
+@keyframes wk-pop { from { transform: scale(.3); } to { transform: scale(1); } }
+
+/* じゅんばん おぼえ：おもちゃ 4つ（2×2） */
+.wk-pads {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  transform: translateX(-50%);
+  width: min(72%, 300px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.wk-pad {
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  color: #000;
+  border-radius: 24px;
+  border: 5px solid #fff;
+  background: rgba(255, 255, 255, .75);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .25);
+  font-size: clamp(36px, 11vw, 60px);
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform .12s ease, background-color .12s ease;
+}
+.wk-pad:disabled { cursor: default; color: #000; }   /* 見本の あいだも うすく しない */
+.wk-pad.is-lit { background: #ffe36e; transform: scale(1.08); }
+.wk-pad.is-answer { background: #bfe3c8; box-shadow: 0 0 0 6px var(--c-ok); }
+
+/* ねこの かくれんぼ：はこ 3つ */
+.wk-shell {
+  position: absolute;
+  bottom: 12%;
+  width: 26%;
+  aspect-ratio: 1 / 1;
+  max-width: 26%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition-property: left;
+  transition-timing-function: ease-in-out;
+}
+.wk-shell:disabled { cursor: default; color: #000; }
+
+.wk-shell__box, .wk-shell__cat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  line-height: 1;
+}
+.wk-shell__box {
+  bottom: 0;
+  font-size: clamp(64px, 20vw, 120px);
+  transition: transform .25s ease;
+}
+.wk-shell__cat {
+  bottom: 18%;
+  font-size: clamp(44px, 13vw, 80px);
+  opacity: 0;
+  transition: opacity .2s ease, transform .25s ease;
+}
+.wk-shell__cat.is-image {
+  left: 5%;
+  width: 90%;
+  aspect-ratio: 1 / 1;
+  background-size: 300% 300%;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+}
+.wk-shell.is-open .wk-shell__cat { opacity: 1; transform: translateY(-70%); }
+.wk-shell.is-open .wk-shell__box { transform: translateY(8%); }
+.wk-shell.is-ok .wk-shell__box { filter: drop-shadow(0 0 10px #3fbf6a); }
+.wk-shell.is-ng .wk-shell__box { filter: drop-shadow(0 0 10px #e05a4f); }
+
+/* ========== したの まど ========== */
+.wk-bottom {
+  flex: 0 0 auto;
+  z-index: 3;
+  max-height: 74dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.wk-window {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: clamp(150px, 26dvh, 220px);
+  margin: 0;
+  padding: 30px 20px 26px;
+  text-align: left;
+  font: inherit;
+  color: var(--c-text);
+  background: rgba(255, 255, 255, .96);
+  border: 0;
+  border-top: 6px solid var(--c-line);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.wk-window.is-in .wk-window__text { animation: wk-fade .25s ease; }
+@keyframes wk-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.wk-window__name {
+  position: absolute;
+  top: -22px;
+  left: 14px;
+  padding: 2px 18px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: clamp(18px, 4.6vw, 26px);
+  border: 3px solid #fff;
+}
+
+.wk-window__text {
+  display: block;
+  font-size: var(--fs-text);
+  white-space: pre-line;
+}
+
+.wk-window__next {
+  position: absolute;
+  right: 18px;
+  bottom: 8px;
+  color: var(--c-go);
+  animation: wk-blink 1s steps(2) infinite;
+}
+@keyframes wk-blink { 50% { opacity: 0; } }
+
+.wk-panel {
+  overflow-y: auto;
+  background: rgba(255, 248, 236, .97);
+  border-top: 6px solid var(--c-line);
+  padding: 12px 14px 16px;
+}
+.wk-panel:empty { display: none; }
+.wk-panel.is-full { background: rgba(255, 248, 236, .94); }
+
+/* ========== ボタン ========== */
+.wk-btn {
+  width: 100%;
+  min-height: 72px;
+  margin: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: var(--fs-button);
+  line-height: 1.25;
+  color: #fff;
+  background: var(--c-go);
+  border: 5px solid rgba(0, 0, 0, .25);
+  border-radius: 22px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, .25);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.wk-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+.wk-btn:focus-visible { outline: 6px solid #ffe36e; outline-offset: 3px; }
+.wk-btn__icon { font-size: 1.1em; line-height: 1; }
+.wk-btn__sub { font-size: .62em; white-space: pre-line; opacity: .95; }
+.wk-btn--sub { background: var(--c-sub); min-height: 60px; font-size: clamp(20px, 5vw, 28px); }
+
+.wk-quiz__next {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ========== タイトル ========== */
+.wk-title {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: clamp(36px, 11vw, 64px);
+  color: var(--c-header);
+  line-height: 1.1;
+}
+.wk-title__sub {
+  margin: 4px auto 0;
+  width: fit-content;
+  padding: 2px 18px;
+  font-size: clamp(20px, 5.4vw, 30px);
+  background: #ffe36e;
+  color: var(--c-header);
+  border: 4px solid var(--c-header);
+  border-radius: 999px;
+}
+.wk-title__lead, .wk-title__best {
+  text-align: center;
+  white-space: pre-line;
+  font-size: clamp(17px, 4.4vw, 24px);
+  margin: 10px 0 0;
+}
+.wk-title__best { color: var(--c-go); }
+.wk-title__btns { display: grid; gap: 12px; margin-top: 12px; }
+
+.wk-link {
+  display: block;
+  margin-top: 14px;
+  padding: 10px;
+  text-align: center;
+  color: var(--c-header);
+  font-size: clamp(18px, 4.6vw, 24px);
+}
+
+/* ========== えらぶ カード ========== */
+.wk-menu__title {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: clamp(24px, 6.4vw, 36px);
+  color: var(--c-header);
+}
+
+.wk-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wk-card {
+  min-height: 0;
+  padding: 6px 6px 10px;
+  background: #fff;
+  color: var(--c-text);
+  border: 5px solid var(--c-person, var(--c-line));
+  font-size: clamp(22px, 5.6vw, 30px);
+}
+.wk-card .wk-btn__sub { font-size: clamp(13px, 3.4vw, 17px); color: #3b3b3b; }
+.wk-card.is-best { background: #fff1f4; border-color: #d0526b; }
+
+.wk-card__face, .wk-card__cat {
+  width: clamp(80px, 26vw, 130px);
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center 10%;
+  background-repeat: no-repeat;
+  border-radius: 50%;
+  background-color: #f3eadb;
+  display: grid;
+  place-items: center;
+  font-size: 48px;
+}
+.wk-card__cat.is-image { background-size: 300% 300%; background-position: 0 0; }
+
+/* ほうかごの メニュー */
+.wk-menu__grid { display: grid; gap: 10px; }
+
+.wk-btn--friend, .wk-btn--baito {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  text-align: left;
+  column-gap: 12px;
+  min-height: 80px;
+  font-size: clamp(20px, 5.2vw, 28px);
+}
+.wk-btn--friend { background: var(--c-person, var(--c-go)); }
+.wk-btn--baito { background: #23506e; }
+.wk-btn--friend .wk-btn__text, .wk-btn--baito .wk-btn__text { flex: 1 1 0; }
+.wk-btn--friend .wk-btn__sub, .wk-btn--baito .wk-btn__sub { flex-basis: 100%; padding-left: 76px; }
+.wk-btn--baito .wk-btn__icon { width: 64px; text-align: center; font-size: 40px; }
+
+.wk-btn__face {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .85) center 10% / cover no-repeat;
+  border: 3px solid #fff;
+}
+
+/* ========== クイズ ========== */
+.wk-quiz__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.wk-quiz__title { margin: 0; font-size: clamp(20px, 5.2vw, 28px); color: var(--c-header); }
+.wk-quiz__count { font-size: clamp(18px, 4.6vw, 24px); color: var(--c-sub); }
+.wk-quiz__kind  { margin: 0; font-size: clamp(16px, 4vw, 20px); color: var(--c-go); }
+
+.wk-quiz__big {
+  margin: 4px 0;
+  text-align: center;
+  font-size: var(--fs-big);
+  line-height: 1.2;
+  letter-spacing: .04em;
+}
+.wk-quiz__blank { font-size: clamp(30px, 8.5vw, 52px); }
+
+.wk-hole {
+  display: inline-block;
+  min-width: 1.2em;
+  margin: 0 .1em;
+  padding: 0 .1em;
+  border-bottom: 5px solid var(--c-go);
+  color: var(--c-go);
+}
+.wk-hole.is-filled { color: var(--c-ok); border-color: var(--c-ok); }
+
+.wk-quiz__text {
+  margin: 4px 0 8px;
+  text-align: center;
+  white-space: pre-line;
+  font-size: var(--fs-text);
+}
+
+.wk-quiz__note {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 12px;
+  white-space: pre-line;
+  font-size: clamp(16px, 4vw, 20px);
+}
+
+.wk-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wk-choice {
+  min-height: 68px;
+  padding: 6px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(20px, 5.4vw, 30px);
+  line-height: 1.25;
+  color: var(--c-text);
+  background: #fff;
+  border: 5px solid var(--c-line);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.wk-choice:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
+.wk-choice:disabled { cursor: default; }
+.wk-choice.is-ng { background: #f6d6d3; border-color: var(--c-ng); color: #6d1914; }
+.wk-choice.is-ok { background: var(--c-ok); border-color: var(--c-ok); color: #fff; }
+
+.wk-quiz__result {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: clamp(22px, 5.6vw, 32px);
+}
+.wk-quiz__result.is-ok { color: var(--c-ok); }
+.wk-quiz__result.is-ng { color: var(--c-ng); }
+
+/* はやおしの のこり時間 */
+.wk-timer {
+  height: 16px;
+  margin: 6px 0;
+  background: #e6dccb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.wk-timer__fill {
+  height: 100%;
+  background: var(--c-ok);
+  transform-origin: left center;
+}
+.wk-timer.is-hurry .wk-timer__fill { background: var(--c-ng); }
+
+/* かげあて（images/animals.png の 3×3） */
+.wk-shadow {
+  width: clamp(96px, 28vw, 150px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  font-size: clamp(60px, 18vw, 96px);
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  transition: filter .3s ease;
+}
+.wk-shadow.is-image { background-image: url("images/animals.png"); }
+.wk-shadow.is-dark { filter: brightness(0); }
+
+/* タップの ミニゲーム */
+.wk-tap__help, .wk-tap__info {
+  margin: 6px 0 0;
+  text-align: center;
+  white-space: pre-line;
+  font-size: var(--fs-text);
+}
+.wk-tap__info { color: var(--c-go); min-height: 1.5em; }
+
+/* ========== けっか ========== */
+.wk-result__title {
+  margin: 0 0 6px;
+  text-align: center;
+  font-size: clamp(24px, 6.4vw, 36px);
+  color: var(--c-header);
+}
+.wk-result__who { margin: 0; text-align: center; font-size: clamp(18px, 4.6vw, 24px); }
+
+.wk-result__list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 6px 0;
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 14px;
+  font-size: clamp(17px, 4.4vw, 22px);
+}
+.wk-result__list dt, .wk-result__list dd { margin: 0; }
+.wk-result__list dd { text-align: right; color: var(--c-ok); }
+
+.wk-result__total, .wk-result__sub {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: clamp(22px, 5.8vw, 32px);
+  color: var(--c-go);
+}
+.wk-result__sub { font-size: clamp(18px, 4.6vw, 24px); color: var(--c-sub); }
+
+.wk-result__grand {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: clamp(44px, 13vw, 72px);
+  line-height: 1.1;
+  color: var(--c-go);
+}
+.wk-result__rank { margin: 0; text-align: center; font-size: clamp(20px, 5.4vw, 30px); color: var(--c-header); }
+.wk-result__new  { margin: 4px 0 0; text-align: center; font-size: clamp(20px, 5.4vw, 28px); color: #d0526b; }
+
+/* きろくの 表 */
+.wk-records {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: clamp(14px, 3.8vw, 20px);
+}
+.wk-records th, .wk-records td {
+  padding: 8px 4px;
+  border: 2px solid #e6dccb;
+  text-align: center;
+}
+.wk-records td.is-best { background: #fff1f4; }
+.wk-records td.is-best::after { content: ' 💞'; }
+.wk-records__note { margin: 8px 0 0; text-align: center; font-size: clamp(14px, 3.8vw, 18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* タイトルの エンドレスモード（お世話の みどり） */
+.wk-btn--endless { background: #1f7a3d; }
+
+/* 日曜の かいもので 手に 入れた アイテム */
+.wk-item__icon {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(56px, 16vw, 88px);
+  line-height: 1.2;
+}

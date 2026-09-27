@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ねこの ともだち</title>
-<meta name="description" content="タップだけであそべる、ねこのおせわと あたまの たいそう">
+<title>猫街ろまん 〜Cat city Romance〜</title>
+<meta name="description" content="猫街ろまん：ねこと 飼い主の 日常ゲーム。一週間モードで ハイスコアを めざすか、エンドレスモードで のんびり おせわ">
 <meta name="theme-color" content="#2f5d3a">
 
-<!-- ホーム画面に くわえた ときの アイコンと なまえ -->
 <link rel="icon" type="image/png" sizes="32x32" href="images/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
 <link rel="apple-touch-icon" href="images/icon-180.png">
@@ -15,130 +14,43 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="ねこ">
+<meta name="apple-mobile-web-app-title" content="猫街ろまん">
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="week.css">
 <link rel="canonical" href="https://pikaring.github.io/tap-on-neko/app/">
 </head>
 <body>
 
-  <!-- ===== ヘッダー：なかよし度とメッセージ ===== -->
-  <header class="header">
-    <div class="status">
-      <span class="status__label">なかよし度</span>
-      <span class="status__value" id="friendship">0</span>
-      <span class="status__level" id="level">レベル 1</span>
+  <!-- ===== ヘッダー：曜日・じかん・てんすう ===== -->
+  <header class="wk-header" id="wkHeader" hidden>
+    <div class="wk-days" id="wkDays" aria-hidden="true"></div>
+    <div class="wk-status">
+      <span class="wk-time" id="wkTime">あさ</span>
+      <span class="wk-score"><span class="wk-score__label">てんすう</span> <b id="wkScore">0</b></span>
     </div>
-    <div class="gauge" aria-hidden="true">
-      <div class="gauge__bar" id="gaugeBar"></div>
-    </div>
-    <!-- おなかと あそびの ゲージ -->
-    <div class="meters">
-      <div class="meter" id="meterFood">
-        <span class="meter__label">
-          <span class="meter__icon" aria-hidden="true">🍚</span>おなか
-          <span class="meter__state" id="meterFoodState"></span>
-        </span>
-        <span class="meter__notches" id="meterFoodNotches"></span>
-      </div>
-      <div class="meter" id="meterPlay">
-        <span class="meter__label">
-          <span class="meter__icon" aria-hidden="true">🧶</span>あそび
-          <span class="meter__state" id="meterPlayState"></span>
-        </span>
-        <span class="meter__notches" id="meterPlayNotches"></span>
-      </div>
-    </div>
-
-    <p class="message" id="message" role="status" aria-live="polite">よろしくニャ！</p>
   </header>
 
-  <!-- ===== メインビュー：へやと ねこ ===== -->
-  <main class="room" id="room">
-
-    <!-- へやの かざり（なかよし度で ふえる。なかみは main.js が つくる） -->
-    <div class="room-items" id="roomItems"></div>
-
-    <!-- ねこの がらを えらぶ ボタン -->
-    <button type="button" class="room-button" id="btnCatPicker">
-      <span class="room-button__icon" aria-hidden="true">🐾</span>
-      <span class="room-button__text">ねこを かえる</span>
-    </button>
-
-    <!-- ねこ本体（あとで 画像に さしかえられるように クラスを わけてあります） -->
-    <div class="cat-stage" id="catStage">
-      <div class="effects" id="effects" aria-hidden="true"></div>
-      <div class="cat" id="cat" role="img" aria-label="ねこ">
-        <span class="cat__emoji" id="catEmoji">🐈</span>
-      </div>
-      <div class="cat__shadow" aria-hidden="true"></div>
-    </div>
-
+  <!-- ===== ぶたい：背景・立ち絵・ねこ ===== -->
+  <main class="wk-stage" id="wkStage">
+    <div class="wk-bg" id="wkBg"></div>
+    <div class="wk-fig wk-fig--left" id="wkFigLeft" aria-hidden="true"></div>
+    <div class="wk-fig wk-fig--right" id="wkFigRight" aria-hidden="true"></div>
+    <div class="wk-cat" id="wkCat" aria-hidden="true" hidden></div>
+    <div class="wk-arena" id="wkArena" hidden></div>
   </main>
 
-  <!-- ===== アクションエリア：おおきな ボタン2つ ===== -->
-  <footer class="actions">
-    <button type="button" class="btn btn--feed" id="btnFeed">
-      <span class="btn__icon" aria-hidden="true">🍚</span>
-      <span class="btn__text">ごはんを あげる</span>
-      <span class="btn__sub">（クイズ）</span>
+  <!-- ===== したの まど：台詞 または メニュー・ミニゲーム ===== -->
+  <section class="wk-bottom" id="wkBottom">
+    <button type="button" class="wk-window" id="wkWindow" hidden>
+      <span class="wk-window__name" id="wkName"></span>
+      <span class="wk-window__text" id="wkText" aria-live="polite"></span>
+      <span class="wk-window__next" aria-hidden="true">▼</span>
     </button>
-    <button type="button" class="btn btn--pet" id="btnPet">
-      <span class="btn__icon" aria-hidden="true">🧶</span>
-      <span class="btn__text">あそぶ</span>
-      <span class="btn__sub">（クイズ）</span>
-    </button>
-  </footer>
-
-  <!-- ===== クイズの がめん ===== -->
-  <div class="modal" id="quizModal" hidden>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
-
-      <h2 class="modal__title" id="quizTitle">ごはんの クイズ</h2>
-      <!-- みだしは main.js が「ごはんの クイズ」「あそびの クイズ」に かきかえる -->
-
-      <div class="quiz">
-        <p class="quiz__kind" id="quizKind"></p>
-        <div class="quiz__silhouette" id="quizSilhouette" hidden aria-hidden="true">
-          <span class="quiz__silhouette-emoji" id="quizSilhouetteEmoji"></span>
-        </div>
-        <p class="quiz__question" id="quizQuestion"></p>
-        <div class="quiz__choices" id="quizChoices"></div>
-        <div class="quiz__answer" id="quizAnswer" hidden>
-          <p class="quiz__yomi" id="quizYomi"></p>
-          <p class="quiz__imi" id="quizImi"></p>
-        </div>
-        <p class="quiz__result" id="quizResult" role="status" aria-live="assertive"></p>
-      </div>
-
-      <button type="button" class="btn btn--close" id="btnCloseQuiz">
-        <span class="btn__text" id="btnCloseQuizText">とじる</span>
-      </button>
-
-    </div>
-  </div>
-
-  <!-- ===== ねこを えらぶ がめん ===== -->
-  <div class="modal" id="catModal" hidden>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="catTitle">
-
-      <h2 class="modal__title" id="catTitle">どの ねこに する？</h2>
-
-      <div class="cat-choices" id="catChoices"></div>
-
-      <button type="button" class="btn btn--close" id="btnCloseCat">
-        <span class="btn__text">これで いい</span>
-      </button>
-
-    </div>
-  </div>
-
-  <!-- ===== 「大正解！」などの おおきな おしらせ ===== -->
-  <div class="bignews" id="bignews" hidden aria-hidden="true">
-    <p class="bignews__text" id="bignewsText"></p>
-  </div>
+    <div class="wk-panel" id="wkPanel"></div>
+  </section>
 
   <script src="questions-kotoba.js"></script>
-  <script src="main.js"></script>
+  <script src="week-data.js"></script>
+  <script src="week.js"></script>
 </body>
 </html>
