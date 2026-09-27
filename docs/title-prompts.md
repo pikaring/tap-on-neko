@@ -29,16 +29,19 @@
 
 ## 1. タイトル（キービジュアル）
 
-**次の 8枚を 添付**して 送ります（ほかの 作品の 絵は 添付しない ―― 線や 雰囲気まで 似て しまう）。
+**4人と 4匹の 見本を 添付**して 送ります（ほかの 作品の 絵は 添付しない ―― 線や 雰囲気まで 似て しまう）。
+見本は 白い 背景に した ものを つかいます（猫は 3×3の ポーズ表から 左上の おすわりだけを 切り出した もの）。
 
-- 4人の 立ち絵：`app/images/people/nao-normal.png`・`fumi-normal.png`・`maki-normal.png`・`chika-normal.png`
-- 4匹の 猫：`app/images/cat-kuro.png`・`cat-chashiro.png`・`cat-kijitora.png`・`cat-hachiware.png`
-  （3×3の ポーズ表。**左上の おすわりの 絵**を 見本に して もらう）
+- 8枚 べつべつに 添付できる とき：`1-nao` `2-maki` `3-fumi` `4-chika` `5-cat-kuro` `6-cat-kijitora` `7-cat-chashiro` `8-cat-hachiware`
+- 1枚しか 添付できない とき：`0-all-in-one`（上の 段が 4人、下の 段が その人の 猫。左から ナオ・マキ・フミ・チカ）
+
+見本の 作りかた（`app/images/` の 絵から）：立ち絵は `people/*-normal.png` を 白い 背景に のせる。
+猫は `cat-*.png` の 左上 3分の1 × 3分の1 を 切り出して 白い 背景に のせ、512px に する。
 
 ```
 ゲームのタイトル画面に使う、たて長の1枚絵（キービジュアル）をつくってください。
 添付した4人の女子高生と、4匹の猫が主人公です。顔・髪型・服・身長・猫の柄は添付の絵とそろえてください。
-（猫の絵は3×3のポーズ表です。左上の「おすわり」の絵を柄の見本にしてください）
+（1枚にまとめた見本のときは、上の段が4人、下の段がその人の猫です。左からナオ・マキ・フミ・チカ）
 
 【物語】
 白い壁の事件がおわって、しずかな日常がもどった海べりの街「猫街」。
@@ -106,7 +109,8 @@
 ```
 Create a portrait key-visual illustration for a game's title screen. The four high-school girls and the four
 cats in the attached images are the heroes; keep the girls' faces, hair, clothes and relative heights, and the
-cats' coat patterns, exactly. (The cat images are 3x3 pose sheets; use the top-left sitting pose as the reference.)
+cats' coat patterns, exactly. (If a single combined reference sheet is attached: top row = the four girls,
+bottom row = each girl's cat directly below her; left to right Nao, Maki, Fumi, Chika.)
 
 Story: "Cat Town", a quiet seaside town where peaceful everyday life has returned. Each girl lives with one cat
 and spends a week of breakfasts, school, after-school fun and evening play. A gentle, slightly nostalgic slice of life.
