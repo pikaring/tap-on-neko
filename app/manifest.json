@@ -1,7 +1,7 @@
 {
-  "name": "ねこの ともだち",
-  "short_name": "ねこ",
-  "description": "タップだけであそべる、ねこのおせわと あたまの たいそう",
+  "name": "猫街ろまん",
+  "short_name": "猫街ろまん",
+  "description": "ねこと 飼い主の 日常ゲーム。一週間モードと エンドレスモード",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",

@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tap on NEKO｜タップだけで遊べる、ねこのお世話とあたまの たいそう</title>
-<meta name="description" content="インストール不要・通信なし・ブラウザだけで動く、ねこのお世話ゲーム。タップだけで遊べる脳トレで、制限時間もゲームオーバーもありません。ことば穴うめ・難読漢字・かげあての3種類のクイズ、4柄の猫と17ポーズ。">
+<title>猫街ろまん 〜Cat city Romance〜｜タップだけで遊べる、ねこと飼い主の日常ゲーム</title>
+<meta name="description" content="インストール不要・通信なし・ブラウザだけで動く、ねこと飼い主の日常ゲーム。一週間モードは朝ごはん・授業・放課後・夜のミニゲームでハイスコアをめざし、エンドレスモードは制限時間なしでのんびりお世話。脳トレクイズ・かげあて早押し・4柄の猫。">
 <meta name="theme-color" content="#2f5d3a">
 
 <link rel="canonical" href="https://pikaring.github.io/tap-on-neko/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Tap on NEKO｜タップだけで遊べる、ねこのお世話とあたまの たいそう">
-<meta property="og:description" content="タップだけで遊べる、ねこのお世話とあたまの たいそう。制限時間もゲームオーバーもありません。">
+<meta property="og:title" content="猫街ろまん 〜Cat city Romance〜｜タップだけで遊べる、ねこと飼い主の日常ゲーム">
+<meta property="og:description" content="タップだけで遊べる、ねこと飼い主の日常ゲーム。一週間モードでハイスコアをめざすか、エンドレスモードでのんびりお世話。">
 <meta property="og:url" content="https://pikaring.github.io/tap-on-neko/">
 <meta property="og:image" content="https://pikaring.github.io/tap-on-neko/assets/icon.png">
 
@@ -47,9 +47,9 @@
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "Tap on NEKO",
+  "name": "猫街ろまん 〜Cat city Romance〜",
   "url": "https://pikaring.github.io/tap-on-neko/",
-  "description": "インストール不要・通信なし・ブラウザだけで動く、ねこのお世話ゲーム。タップだけで遊べる脳トレで、制限時間もゲームオーバーもありません。ことば穴うめ・難読漢字・かげあての3種類のクイズ、4柄の猫と17ポーズ。",
+  "description": "インストール不要・通信なし・ブラウザだけで動く、ねこと飼い主の日常ゲーム。一週間モードは朝ごはん・授業・放課後・夜のミニゲームでハイスコアをめざし、エンドレスモードは制限時間なしでのんびりお世話。脳トレクイズ・かげあて早押し・4柄の猫。",
   "applicationCategory": "GameApplication",
   "operatingSystem": "すべて（ウェブブラウザ）",
   "inLanguage": "ja",
@@ -73,10 +73,11 @@
 
 <header class="header">
   <div class="wrap header-inner">
-    <a class="brand" href="./">Tap on NEKO</a>
+    <a class="brand" href="./">猫街ろまん</a>
     <nav class="nav">
       <a href="#goods">道具と本</a>
-      <a href="#about">どんなゲーム</a>
+      <a href="#week">一週間モード</a>
+      <a href="#about">エンドレスモード</a>
       <a href="#quiz">クイズ</a>
       <a href="#faq">よくある質問</a>
       <a class="btn btn-main" href="app/">あそぶ</a>
@@ -88,10 +89,11 @@
   <div class="wrap hero-grid">
     <div>
       <span class="pill"><b>無料</b> · インストール不要 · 通信なし · MIT License</span>
-      <h1>なでて、クイズ。<br>ねこと ひと休み。</h1>
-      <p class="lead">タップだけでできる、ねこのお世話とあたまの たいそう。
-        なでれば喜び、クイズに正解すればごはんを食べます。
-        制限時間も、減点も、ゲームオーバーもありません。
+      <h1>猫街ろまん<br>ねこと くらす 街の、ちいさな 毎日。</h1>
+      <p class="lead">タップだけで遊べる、ねこと飼い主の日常ゲーム。
+        <b>一週間モード</b>では、ナオ・フミ・マキ・チカの だれかになって、
+        朝ごはん・授業・放課後・夜のあそびを7日くりかえし、ハイスコアをめざします。
+        <b>エンドレスモード</b>は、制限時間も減点もない のんびりお世話。
         しばらく開かなくても、ねこは「まってたニャ！」と迎えてくれます。</p>
       <div class="hero-actions">
         <a class="btn btn-main" href="app/">いますぐ あそぶ</a>
@@ -100,7 +102,7 @@
       <p class="hero-note">ホーム画面に追加すると、アプリのように全画面で開けます。</p>
     </div>
 
-    <!-- 実物の画面（app/index.html）の配色・部品に合わせたモック -->
+    <!-- エンドレスモード（app/endless.html）の配色・部品に合わせたモック -->
     <div class="phone" aria-hidden="true">
       <div class="screen screen-neko">
         <div class="nbar">
@@ -125,7 +127,7 @@
 <div class="specs">
   <div class="wrap specs-grid">
     <div class="spec"><b>タップだけ</b><span>スワイプ・長押し・ドラッグは使いません</span></div>
-    <div class="spec"><b>時間制限なし</b><span>ゲームオーバーも、病気も、死亡もありません</span></div>
+    <div class="spec"><b>2つのモード</b><span>一週間でハイスコア／エンドレスは時間制限なし</span></div>
     <div class="spec"><b>通信なし</b><span>開いたあとは、すべて端末の中だけで動きます</span></div>
     <div class="spec"><b>309問</b><span>ことば穴うめ200・難読漢字100・かげあて9</span></div>
   </div>
@@ -172,11 +174,47 @@
   </div>
 </section>
 
+<section class="alt" id="week">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">ONE WEEK MODE</p>
+      <h2>一週間モード：月曜から日曜まで。</h2>
+      <p>「街と、その白い壁」（<a href="https://pikaring.github.io/throw-on-tako/">throw-on-tako</a>）の
+        4人が、ねこの飼い主になります。1日は4つの時間。どの時間もミニゲームで点数が入り、7日の合計がハイスコアです。</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <p class="num">朝</p>
+        <h3>ねこに ごはん</h3>
+        <p>ねこクイズに答えて朝ごはん。「ねこの手も かりたい」の意味は？</p>
+      </div>
+      <div class="card">
+        <p class="num">昼</p>
+        <h3>学校で 授業</h3>
+        <p>こくご・さんすう・りか、金曜は小テスト。土曜は商店街の「ねこ じまん 大会」。</p>
+      </div>
+      <div class="card">
+        <p class="num">夕</p>
+        <h3>友だち か バイト</h3>
+        <p>友だちと図書室・ゲームセンター・バッティングセンター・あまみどころへ。魚屋のバイトでは、タコ大王とおかいけいの早押し。</p>
+      </div>
+      <div class="card">
+        <p class="num">夜</p>
+        <h3>ねこと あそぶ</h3>
+        <p>ねこじゃらしが出たら すぐタップ。日曜は友だちが家に来て、みんなで遊びます。</p>
+      </div>
+    </div>
+    <p class="note">飼い主4人 × ねこ4柄の16通り。飼い主には得意（勉強・友だち・早押し・お店）が、
+      ねこには性格（げんき・くいしんぼう・きまぐれ・おっとり）があり、相性◎の組み合わせは合計1.2倍。
+      組み合わせごとの最高記録が残ります。</p>
+  </div>
+</section>
+
 <section id="about">
   <div class="wrap">
     <div class="sec-head">
-      <p class="eyebrow">HOW TO PLAY</p>
-      <h2>ふたつの ボタンだけ。</h2>
+      <p class="eyebrow">ENDLESS MODE</p>
+      <h2>エンドレスモード：ふたつの ボタンだけ。</h2>
     </div>
     <div class="cards">
       <div class="card">
@@ -288,7 +326,7 @@
       </div>
       <div class="steps-box">
         <div class="flow-step"><b>1</b><span>ブラウザで開く（登録もダウンロードも不要）</span></div>
-        <div class="flow-step"><b>2</b><span>好きな柄のねこを選ぶ</span></div>
+        <div class="flow-step"><b>2</b><span>「エンドレスモード」を選び、好きな柄のねこを選ぶ</span></div>
         <div class="flow-step"><b>3</b><span>「あそぶ」か「ごはんを あげる」を押す</span></div>
         <div class="flow-step"><b>4</b><span>ホーム画面に追加すれば、次からは1タップで</span></div>
       </div>
@@ -318,9 +356,15 @@
     </details>
     <details>
       <summary>ずっと遊び続けられますか？</summary>
-      <p>ゲージがいっぱいになると、そのお世話はひと休みになります。
+      <p>エンドレスモードでは、ゲージがいっぱいになると、そのお世話はひと休みになります。
         押しても「おなかは いっぱいだニャ」と返事をするだけで、しかられません。
         あそびは約1時間、ごはんは約2時間で、また1回ぶんの空きができて遊べます。</p>
+    </details>
+    <details>
+      <summary>一週間モードに制限時間はありますか？</summary>
+      <p>「早押し」のミニゲーム（けいさん・かげあて・おかいけい・ねこじゃらし など）だけ、早く答えるほど点数が上がります。
+        時間切れや不正解でもゲームオーバーにはならず、そのまま次へ進みます。
+        一日の終わりで「ここで やすむ」を選ぶと、次は「つづきから」遊べます。</p>
     </details>
     <details>
       <summary>データを消してやり直せますか？</summary>
@@ -363,7 +407,7 @@
 
 <footer class="footer">
   <div class="wrap footer-inner">
-    <span>Tap on NEKO</span>
+    <span>猫街ろまん 〜Cat city Romance〜</span>
     <a href="https://github.com/pikaring/tap-on-neko">GitHub</a>
     <a href="https://github.com/pikaring/tap-on-neko/blob/main/README.md">README</a>
     <span class="counter">累計アクセス <b id="counter-value">―</b> 回</span>

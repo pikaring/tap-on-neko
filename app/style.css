@@ -1,6 +1,6 @@
 @charset "UTF-8";
 /* =========================================================
-   ねこの ともだち  ―  スタイル
+   猫街ろまん エンドレスモード  ―  スタイル
    ・高齢者向け：おおきい文字・おおきいボタン・たかいコントラスト
    ・タップ領域は すべて 48px 以上（じっさいは 80px 以上）
    ========================================================= */
@@ -252,6 +252,14 @@ body {
   box-shadow: 0 4px 0 rgba(0, 0, 0, .2);
   cursor: pointer;
   touch-action: manipulation;
+}
+
+/* タイトルへ もどる ボタン（「ねこを かえる」の 下） */
+.room-button--week {
+  top: 78px;
+  color: var(--c-feed);
+  border-color: var(--c-feed);
+  text-decoration: none;
 }
 
 .room-button:active {
@@ -822,6 +830,8 @@ body {
     padding: 4px 14px;
     font-size: 16px;
   }
+
+  .room-button--week { top: 66px; }
 
   .actions { padding: 8px; gap: 8px; border-top-width: 4px; }
 
