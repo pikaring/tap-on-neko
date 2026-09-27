@@ -48,8 +48,11 @@ function loadWeekSave() {
   }
 }
 
+/* 曜日の ならびを かえたら 上げる（ちがう ならびの とちゅう セーブは つかわない） */
+var RUN_VERSION = 2;
+
 function validRun(r) {
-  return !!(r && typeof r === 'object' && WEEK.owners[r.owner] && WEEK.cats[r.cat] &&
+  return !!(r && typeof r === 'object' && r.version === RUN_VERSION && WEEK.owners[r.owner] && WEEK.cats[r.cat] &&
     typeof r.day === 'number' && r.day >= 0 && r.day < WEEK.days.length &&
     typeof r.slot === 'number' && r.slot >= 0 && r.slot < SLOTS.length &&
     r.score && typeof r.score === 'object');
@@ -73,7 +76,9 @@ function newRun(owner, cat) {
   var friendCount = {};
   WEEK.ownerOrder.forEach(function (k) { if (k !== owner) { friendCount[k] = 0; } });
   return {
+    version: RUN_VERSION,
     owner: owner, cat: cat, day: 0, slot: 0,
+    item: null,         /* 日曜の かいもので 手に 入れた アイテム（WEEK.items の キー） */
     score: { neko: 0, gakkou: 0, tomo: 0, baito: 0 },
     friendCount: friendCount,
     dayScores: [0, 0, 0, 0, 0, 0, 0],
@@ -104,6 +109,17 @@ function upgradeRun(r) {
   if (!Array.isArray(r.schedule) || r.schedule.length !== Object.keys(WEEK.subjects).length) { r.schedule = makeSchedule(); }
   if (!Array.isArray(r.nightOrder) || r.nightOrder.length !== WEEK.days.length) { r.nightOrder = makeNightOrder(); }
   return r;
+}
+
+/** その日の 時間の よびかた（日曜の「ごご」、土曜の「大会」など） */
+function slotName(r, slot) {
+  var names = WEEK.days[r.day].names;
+  return (names && names[slot]) || SLOTS[slot];
+}
+
+/** その日に ある 時間の かず（土曜は 2つ） */
+function daySlots(d) {
+  return WEEK.days[d].slots || SLOTS.length;
 }
 
 function runTotal(r) {
@@ -302,7 +318,8 @@ function updateHeader() {
     if (d.holiday) { chip.classList.add('is-holiday'); }
     ui.wkDays.appendChild(chip);
   });
-  ui.wkTime.textContent = WEEK.days[run.day].label + '・' + SLOTS[run.slot];
+  var item = run.item && WEEK.items[run.item];
+  ui.wkTime.textContent = WEEK.days[run.day].label + '・' + slotName(run, run.slot) + (item ? '  ' + item.icon : '');
   ui.wkScore.textContent = fmt(runTotal(run));
 }
 
@@ -499,6 +516,14 @@ function makeBaito() {
   return { kind: 'おかいけい', text: text, answer: total + '円', choices: choices, speed: true, limit: 9000 };
 }
 
+function makeOtsuri() {
+  var price = rand(12, 88) * 10;
+  var ans = 1000 - price;
+  var choices = nearChoices(ans, [10, 50, 100]).map(function (n) { return n + '円'; });
+  return { kind: 'おつり', text: price + '円の ものを\n1000円で かったら、おつりは？', answer: ans + '円',
+           choices: choices, speed: true, limit: 9000 };
+}
+
 /* ミニゲームの しゅるい */
 var GAMES = {
   kotoba:     { title: 'ことばクイズ',   count: 3, make: makeKotoba },
@@ -513,7 +538,7 @@ var GAMES = {
   bat:        { title: 'ボールを うつ', tap: true, targets: 8, life: 1700, emoji: '⚾', hit: 'カキーン！' },
   oboeru:     { title: 'じゅんばん おぼえ', memory: true, rounds: [3, 4, 5], toys: ['🧶', '🐭', '🪶', '🎾'], per: 30 },
   kakurenbo:  { title: 'ねこの かくれんぼ', shell: true, rounds: [3, 5, 7], speed: [520, 420, 330], per: 120 },
-  party:      { title: 'みんなで ねこじゃらし', tap: true, targets: 10, life: 2000, emoji: '🪶', hit: 'ニャッ！', cat: true }
+  otsuri:     { title: 'おつり はやおし', count: 4, make: makeOtsuri }
 };
 
 /* ---------------------------------------------------------
@@ -976,6 +1001,19 @@ function scoreSlot(res, ctx) {
       lines.push({ label: cat.name + '（' + cat.trait + '）', value: '+' + cat.nightly });
     }
   }
+  var item = run.item && WEEK.items[run.item];
+  if (item) {
+    var extra = 0;
+    if ((item.time && item.time === ctx.time) || (item.category && item.category === ctx.category)) {
+      extra = Math.round(pts * (item.mult - 1));
+    } else if (item.speed && res.speedPoints) {
+      extra = Math.round(res.speedPoints * (item.mult - 1));
+    }
+    if (extra) {
+      pts += extra;
+      lines.push({ label: item.icon + ' ' + item.name, value: '+' + fmt(extra) });
+    }
+  }
   if (ctx.extra) {
     pts += ctx.extra.value;
     lines.push({ label: ctx.extra.label, value: '+' + fmt(ctx.extra.value) });
@@ -989,7 +1027,7 @@ function showSlotResult(res, ctx, next) {
   run.dayScores[run.day] += s.points;
   updateHeader();
   var box = panel('is-result');
-  box.appendChild(mk('p', 'wk-result__title', SLOTS[run.slot] + 'の けっか'));
+  box.appendChild(mk('p', 'wk-result__title', slotName(run, run.slot) + 'の けっか'));
   var list = mk('dl', 'wk-result__list');
   s.lines.forEach(function (l) {
     list.appendChild(mk('dt', '', l.label));
@@ -1008,7 +1046,7 @@ function showSlotResult(res, ctx, next) {
    --------------------------------------------------------- */
 function advance() {
   run.slot++;
-  if (run.slot >= SLOTS.length) {
+  if (run.slot >= daySlots(run.day)) {
     endOfDay();
     return;
   }
@@ -1064,16 +1102,7 @@ function slotDay() {
     });
     return;
   }
-  if (spec.game === 'party') {
-    sceneFriend = topFriend();
-    say(WEEK.scenes.party, function () {
-      setCat('noon');
-      playGame('party', function (res) {
-        showSlotResult(res, { category: 'tomo', time: '' }, advance);
-      });
-    });
-    return;
-  }
+  if (spec.game === 'shopping') { slotShopping(); return; }
   /* 月〜金：授業（月〜木の 科目は run.schedule の じゅん） */
   if (spec.game === 'subject') {
     var subj = run.schedule[run.day] || 'kotoba';
@@ -1092,12 +1121,63 @@ function slotDay() {
   });
 }
 
+/** 日曜の ひる：ともだちと かいもの。アイテムが 手に 入る */
+function slotShopping() {
+  setCat(null);
+  setFigure('right', null);
+  say(WEEK.scenes.shopping, function () {
+    var box = panel('is-menu');
+    box.appendChild(mk('p', 'wk-menu__title', 'だれと かいものに 行く？'));
+    var grid = mk('div', 'wk-menu__grid');
+    box.appendChild(grid);
+    others().forEach(function (k) {
+      var shop = WEEK.friends[k].shop;
+      var item = WEEK.items[shop.item];
+      var b = button(grid, 'wk-btn--friend', '', personName(k) + 'と ' + shop.place,
+        item.icon + ' ' + item.name + '（' + item.note + '）', function () { goShopping(k); });
+      b.style.setProperty('--c-person', personColor(k));
+      var face = mk('span', 'wk-btn__face');
+      face.setAttribute('aria-hidden', 'true');
+      loadImage(faceUrl(k, 'happy'), function (ok) { if (ok) { face.style.backgroundImage = 'url("' + faceUrl(k, 'happy') + '")'; } });
+      b.insertBefore(face, b.firstChild);
+    });
+  });
+}
+
+function goShopping(k) {
+  sceneFriend = k;
+  var shop = WEEK.friends[k].shop;
+  var item = WEEK.items[shop.item];
+  say([{ who: 'friend', text: shop.line }], function () {
+    playGame('otsuri', function (res) {
+      run.friendCount[k]++;
+      showSlotResult(res, { category: 'tomo', time: '' }, function () {
+        run.item = shop.item;
+        updateHeader();
+        var box = panel('is-result');
+        box.appendChild(mk('p', 'wk-result__title', 'アイテムを 手に 入れた！'));
+        box.appendChild(mk('p', 'wk-item__icon', item.icon));
+        box.appendChild(mk('p', 'wk-result__total', item.name));
+        box.appendChild(mk('p', 'wk-result__sub', item.note + '（土曜まで ずっと）'));
+        var go = mk('div', 'wk-quiz__next');
+        box.appendChild(go);
+        button(go, 'wk-btn--go', '', 'つぎへ', '', function () {
+          say([{ who: 'friend', face: 'happy', text: shop.got }, { who: 'me', face: 'happy', text: '@thanks' }], advance);
+        });
+      });
+    });
+  });
+}
+
 function slotAfter() {
   setCat(null);
   setFigure('right', null);
-  say(WEEK.scenes.afterChoose, function () {
+  var intro = WEEK.days[run.day].holiday
+    ? [{ bg: 'road', text: fill('ごごは なにを しよう。') }]
+    : WEEK.scenes.afterChoose;
+  say(intro, function () {
     var box = panel('is-menu');
-    box.appendChild(mk('p', 'wk-menu__title', 'ほうかごは どう する？'));
+    box.appendChild(mk('p', 'wk-menu__title', slotName(run, run.slot) + 'は どう する？'));
     var grid = mk('div', 'wk-menu__grid');
     box.appendChild(grid);
     others().forEach(function (k) {
@@ -1217,7 +1297,9 @@ function showFinal() {
   setCat('celebrate');
   var box = panel('is-full');
   box.appendChild(mk('p', 'wk-result__title', '一週間の けっか'));
-  box.appendChild(mk('p', 'wk-result__who', WEEK.owners[r.owner].name + ' と ' + WEEK.cats[r.cat].name));
+  var item = r.item && WEEK.items[r.item];
+  box.appendChild(mk('p', 'wk-result__who', WEEK.owners[r.owner].name + ' と ' + WEEK.cats[r.cat].name +
+    (item ? '  ' + item.icon + ' ' + item.name : '')));
   var list = mk('dl', 'wk-result__list');
   CATEGORIES.forEach(function (c) {
     list.appendChild(mk('dt', '', c.icon + ' ' + c.label));
@@ -1284,7 +1366,7 @@ function weekMenu() {
   box.appendChild(btns);
   var r = save.run;
   button(btns, 'wk-btn--go', '🔖', 'つづきから',
-    WEEK.owners[r.owner].name + '・' + WEEK.cats[r.cat].name + '／' + WEEK.days[r.day].label + ' ' + SLOTS[r.slot],
+    WEEK.owners[r.owner].name + '・' + WEEK.cats[r.cat].name + '／' + WEEK.days[r.day].label + ' ' + slotName(r, r.slot),
     function () { startRun(save.run); });
   button(btns, 'wk-btn--sub', '📖', 'はじめから', 'つづきは きえます', chooseOwner);
   button(btns, 'wk-btn--sub', '🏆', 'きろく', '16の くみあわせ', showRecords);

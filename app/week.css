@@ -684,3 +684,11 @@ body {
 
 /* タイトルの エンドレスモード（お世話の みどり） */
 .wk-btn--endless { background: #1f7a3d; }
+
+/* 日曜の かいもので 手に 入れた アイテム */
+.wk-item__icon {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(56px, 16vw, 88px);
+  line-height: 1.2;
+}

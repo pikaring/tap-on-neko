@@ -27,6 +27,7 @@ var WEEK = {
         home:   'ただいま、{cat}。\nまって いて くれたんですね。',
         night:  'さあ、{cat}。\nすこし あそびましょう。',
         sleep:  'おやすみなさい、{cat}。',
+        shop:   'きょうは おやすみ。\nだれと 商店街へ\n行きましょうか。',
         taikai: '{cat}、きんちょう しなくて\nだいじょうぶですよ。'
       }
     },
@@ -45,6 +46,7 @@ var WEEK = {
         home:   'ただいまー、{cat}！\nさみしかった？',
         night:  'よーし {cat}、\nあそぶよ〜！',
         sleep:  'おやすみ、{cat}。\nあしたも よろしく。',
+        shop:   '日曜だ〜！\nだれ さそって\nかいもの 行こっかな。',
         taikai: '{cat}、いつも どおりで いこ！\nぜったい かわいいから！'
       }
     },
@@ -63,6 +65,7 @@ var WEEK = {
         home:   'ただいま、{cat}。\nいい子に してた？',
         night:  'さあ {cat}、\nきょうは なにして あそぶ？',
         sleep:  'おやすみ、{cat}。\nあしたも 朝から いくよ。',
+        shop:   'きょうは 朝練 なし。\nだれかと\nかいものに 行こうか。',
         taikai: '{cat}、肩の 力を ぬいて。\nいつも どおりで いい。'
       }
     },
@@ -81,6 +84,7 @@ var WEEK = {
         home:   'ただいま、{cat}！\nおみやげの にぼし あるよ。',
         night:  'よーし {cat}、\nあそぼっか！',
         sleep:  'おやすみ、{cat}。\nあしたも はやいよ。',
+        shop:   '日曜は 店が いそがしい けど、\nひるは おやすみ！\nだれと 行こう？',
         taikai: '{cat}、みんな 見てるよ！\nむね はって いこ！'
       }
     }
@@ -125,17 +129,28 @@ var WEEK = {
   },
 
   /* 夜の あそび。曜日ごとに ランダムに かわる */
-  nightGames: ['jarashi', 'oboeru', 'kakurenbo'],
+  nightGames: ['jarashi', 'oboeru', 'kakurenbo'],   /* 日〜金の 6ばん */
 
+  /* 日曜に はじまり、土曜の 大会で おわる。
+     slots … その日に ある 時間（土曜は あさと 大会だけ）。names … 時間の よびかた */
   days: [
+    { label: 'にちようび', short: '日', school: { game: 'shopping' }, holiday: true, names: ['あさ', 'ひる', 'ごご', 'よる'] },
     { label: 'げつようび', short: '月', school: { game: 'subject', talk: 'announce' } },
     { label: 'かようび',   short: '火', school: { game: 'subject', talk: 'subject' } },
     { label: 'すいようび', short: '水', school: { game: 'subject', talk: 'subject' } },
     { label: 'もくようび', short: '木', school: { game: 'subject', talk: 'cheer' } },
     { label: 'きんようび', short: '金', school: { game: 'test', talk: 'test', title: 'しょうテスト', note: 'いろいろ 5もん・1.5ばい' } },
-    { label: 'どようび',   short: '土', school: { game: 'taikai',     title: 'ねこ じまん 大会',   note: 'ねこクイズ はやおし' }, holiday: true },
-    { label: 'にちようび', short: '日', school: { game: 'party',      title: 'みんなで ねこと あそぶ', note: 'ねこじゃらし' }, holiday: true }
+    { label: 'どようび',   short: '土', school: { game: 'taikai' }, holiday: true, slots: 2, names: ['あさ', 'ねこ じまん 大会'] }
   ],
+
+  /* ---------- 日曜の かいもので 手に 入る アイテム（1しゅうかん ずっと きく） ----------
+     time / category / speed … どの てんすうが ふえるか。mult … ばいりつ */
+  items: {
+    zukan:    { name: 'ねこの ずかん',         icon: '📘', note: 'あさごはん 1.3ばい', time: 'morning',  mult: 1.3 },
+    strap:    { name: 'おそろいの ストラップ', icon: '🎀', note: 'ともだち 1.3ばい', category: 'tomo', mult: 1.3 },
+    watch:    { name: 'ストップウォッチ',       icon: '⏱️', note: 'はやおし 1.3ばい', speed: true,    mult: 1.3 },
+    jarashi:  { name: 'ふわふわ ねこじゃらし', icon: '🪶', note: 'よるの あそび 1.3ばい',    time: 'night',    mult: 1.3 }
+  },
 
   /* ---------- ともだち（飼い主 いがいの 3人が ともだちに なる） ----------
      school … 授業の まえに 話しかけて くる 台詞。
@@ -144,6 +159,9 @@ var WEEK = {
      game   … いっしょに やる ミニゲーム */
   friends: {
     nao: {
+      shop: { place: '駅前の 本屋', item: 'zukan',
+        line: 'ねこの 本なら、駅前の\n本屋さんが いちばんです。\nいっしょに 行きましょう。',
+        got:  'この ずかん、{cat}さんの\nことが たくさん\nのって いますよ。' },
       place: 'としょしつ', game: 'kanji',
       school: {
         announce:   'あの、{me}さん。\n土曜日に 商店街で\n「ねこ じまん 大会」が あるそうです。',
@@ -162,6 +180,9 @@ var WEEK = {
       ending: '{me}さん。\nこの 一週間、ほんとうに\nたのしかったです。'
     },
     fumi: {
+      shop: { place: '雑貨屋', item: 'strap',
+        line: '雑貨屋 行こ！\nおそろいの ストラップ、\nほしかったんだよね〜。',
+        got:  'じゃーん、おそろい！\nこれで 一週間\nずっと いっしょね！' },
       place: 'ゲームセンター', game: 'silhouette',
       school: {
         announce:   '{me}、きいた？\n土曜に 商店街で\n「ねこ じまん 大会」だって！',
@@ -180,6 +201,9 @@ var WEEK = {
       ending: '{me}、一週間 おつかれ！\nらいしゅうも いっぱい\nあそぼうね！'
     },
     maki: {
+      shop: { place: 'スポーツ用品店', item: 'watch',
+        line: 'スポーツ用品店に 行こう。\nいい ストップウォッチが\nあるんだ。',
+        got:  'はやおしの 練習にも\nつかえるよ。\n1秒を 大事に！' },
       place: 'バッティングセンター', game: 'bat',
       school: {
         announce:   'ねえ {me}。\n土曜に 商店街で\n「ねこ じまん 大会」が あるって。',
@@ -198,6 +222,9 @@ var WEEK = {
       ending: '{me}、いい 一週間だった。\nまた いっしょに\n汗 かこうね。'
     },
     chika: {
+      shop: { place: 'ペットショップ', item: 'jarashi',
+        line: '商店街の ペットショップに、\n新しい ねこじゃらしが\n入ったんだって！',
+        got:  'これ、ふわっふわ！\n{cat}、ぜったい\nよろこぶよ！' },
       place: 'あまみどころ', game: 'kotoba',
       school: {
         announce:   '{me}！ 土曜に うちの 商店街で\n「ねこ じまん 大会」 やるんだ！\nぜったい 来てね！',
@@ -366,10 +393,9 @@ var WEEK = {
     taikaiDone: [
       { who: 'daiou', text: 'すばらしいダコ！\n{cat}と {me}の なかよしぶりに、\n会場も にっこりダコ。' }
     ],
-    party: [
-      { bg: 'home', text: '日曜日。\nみんなが {me}の いえに\nあそびに 来た。' },
-      { who: 'friend', face: 'happy', text: '{cat}〜！\nきょうは みんなで\nあそぼうね！' },
-      { who: 'cat', pose: 'noon', text: 'ニャッ！' }
+    shopping: [
+      { bg: 'shotengai', text: '日曜日の ひる。\n商店街へ かいものに\n行くことに した。' },
+      { who: 'me', text: '@shop' }
     ],
     afterChoose: [
       { bg: 'road', who: 'me', text: '@after' }
@@ -384,7 +410,7 @@ var WEEK = {
       { who: 'me', text: '@sleep' }
     ],
     ending: [
-      { bg: 'ending', text: 'こうして、{me}と {cat}の\n一週間が おわった。' }
+      { bg: 'ending', text: 'ねこ じまん 大会も おわり、\n{me}と {cat}の\n一週間が おわった。' }
     ]
   },
 
@@ -397,10 +423,10 @@ var WEEK = {
 
   /* 1しゅうかんの ごうけいで つく しょうごう */
   ranks: [
-    { min: 16000, name: 'でんせつの ねこ マスター' },
-    { min: 13000, name: 'ねこ じまんの 名人' },
-    { min: 10000, name: 'ねこと なかよし 高校生' },
-    { min: 7000,  name: 'がんばりや さん' },
+    { min: 14000, name: 'でんせつの ねこ マスター' },
+    { min: 11000, name: 'ねこ じまんの 名人' },
+    { min: 8500,  name: 'ねこと なかよし 高校生' },
+    { min: 6000,  name: 'がんばりや さん' },
     { min: 0,     name: 'これから これから' }
   ]
 };
