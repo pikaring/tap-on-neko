@@ -1,19 +1,23 @@
 /* =========================================================
-   ネコネソンヌ（シンプル版）― 猫道を つないで 面を かこむ 陣取り
-   ・9×9 の 盤。タイルには 猫道（中心から 辺の まん中へ）が 0〜4本
-   ・猫道は「境界線」。猫道だけで ぐるりと かこまれた 面が なわばり（盤の 端に ふれた 面は ちがう）
-   ・ねこは 猫道の 上（タイルの 中心）に おく。面を かこむ 猫道の 上の
-     ねこが いちばん 多い 人の なわばり
-   ・面の 中に 空きマスが なくなったら 完成。点は ¼マス＝1点
+   ネコネソンヌ ― 猫道を つないで 面を かこむ 陣取り
+   ・盤は 9×9（2人は 7×7）。タイルには 猫道（中心から 辺の まん中へ）が 0〜4本
+   ・猫道と 盤の 端が 境界線。ただし 四辺の まん中は「出口」で、出口に ふれた 面は 0点
+   ・ねこは 猫道の 上（タイルの 中心）に おく
+   ・面が 完成（中に 空きマスが ない）したら すぐ 採点：面に 面した 猫道の ねこの
+     多数派が ¼マス＝1点を もらう。境界の ねこは 全員 手もとへ もどり、
+     持ち主は なわばりの 中に ねこを 1匹 おく（目じるし。ずっと のこる）
+   ・さいごに 手もとに のこった ねこ 1匹＝1点
 
-   面の 計算：タイルの 角（格子点 10×10）を 1点と みなす。
-   1つの 格子点の まわりの ¼マス 4つは かならず つながって いて、
-   となりの 格子点とは「その あいだを 猫道が 横切って いない」ときだけ つながる。
+   面の 計算：タイルの 角（格子点）を 1点と みなす。1つの 格子点の まわりの
+   ¼マス 4つは かならず つながり、となりの 格子点とは「その あいだを 猫道が
+   横切って いない」ときだけ つながる。完成した 面は それ以上 かわらない。
    ========================================================= */
 (function () {
   'use strict';
 
-  var SIZE = 9, N = SIZE * SIZE, V = SIZE + 1;   /* 格子点は 10×10 */
+  var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
+  function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
+
   var DN = 1, DE = 2, DS = 4, DW = 8, DIRS = [DN, DE, DS, DW];
 
   var CATS = [
@@ -22,17 +26,23 @@
     { id: 'kijitora', name: 'きじとら', color: '#c65a00' },
     { id: 'chashiro', name: 'ちゃしろ', color: '#d0526b' }
   ];
-  var CATS_BY_N = { 2: 12, 3: 10, 4: 8 };
-  var HAND_MAX = 3;
-  /* デッキ 88まい（まん中の 十字を のぞく）。道の ない マスも まぜる */
+  /* 人数ごとの 設定：盤の 大きさ・ねこの かず・手札（2人は 場に 4まい ならべた 共通の タイルから えらぶ） */
+  var RULES_BY_N = {
+    2: { size: 7, cats: 7, hand: 4, shared: true },
+    3: { size: 9, cats: 6, hand: 3, shared: false },
+    4: { size: 9, cats: 5, hand: 3, shared: false }
+  };
+  /* デッキ 88まい（まん中の 十字を のぞく）。分岐は 少なめ、かこみやすい 角を 多めに */
   var DECK_DEF = [
-    { m: 15, n: 14 },   /* 十字 */
-    { m: 7, n: 22 },    /* T字 */
-    { m: 5, n: 16 },    /* 直線 */
-    { m: 3, n: 20 },    /* 角 */
-    { m: 1, n: 8 },     /* 行き止まり */
+    { m: 15, n: 8 },    /* 十字 */
+    { m: 7, n: 16 },    /* T字 */
+    { m: 5, n: 20 },    /* 直線 */
+    { m: 3, n: 24 },    /* 角 */
+    { m: 1, n: 12 },    /* 行き止まり */
     { m: 0, n: 8 }      /* 道なし */
   ];
+  /* 格子点の 採点ずみ しるし */
+  var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
   /* ---------- 盤の 幾何 ---------- */
   function opp(d) { return d === DN ? DS : d === DE ? DW : d === DS ? DN : DE; }
@@ -52,29 +62,48 @@
     DECK_DEF.forEach(function (def) { for (var i = 0; i < def.n; i++) d.push({ uid: uid++, m: def.m }); });
     return shuffle(d);
   }
+  /** 出口：四辺の まん中の マスの 外がわの 辺（その 両はしの 格子点） */
+  function exitVerts() {
+    var mid = (SIZE - 1) / 2, last = V - 1, set = {};
+    [[mid, 0], [mid + 1, 0], [mid, last], [mid + 1, last], [0, mid], [0, mid + 1], [last, mid], [last, mid + 1]]
+      .forEach(function (p) { set[p[1] * V + p[0]] = true; });
+    return set;
+  }
 
   /* =========================================================
      状態と ルール（描画と わけて ある。CPU も 同じ 関数を つかう）
      ========================================================= */
   function newGame(seats) {
-    var n = seats.length;
+    var n = seats.length, R = RULES_BY_N[n];
+    setSize(R.size);
+    var shared = R.shared ? [] : null;
     var s = {
-      n: n,
-      players: seats.map(function (st, i) { return { index: i, cat: st.cat, human: st.human, catsLeft: CATS_BY_N[n], hand: [] }; }),
+      n: n, size: R.size, handMax: R.hand, shared: R.shared,
+      players: seats.map(function (st, i) {
+        return { index: i, cat: st.cat, human: st.human, catsLeft: R.cats, score: 0, hand: shared || [] };
+      }),
       cells: new Array(N).fill(null),
+      vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
+      markers: [],                               /* なわばりの 目じるしの ねこ {v, p} */
+      exits: exitVerts(),
       deck: buildDeck(),
       current: 0, turn: 0, passes: 0, phase: 'playing', last: -1, log: [], _f: null
     };
-    s.cells[40] = { m: 15, uid: 0, cat: null };
-    s.players.forEach(function (p) { p.hand.push(s.deck.pop(), s.deck.pop()); });
+    s.cells[(N - 1) / 2] = { m: 15, uid: 0, cat: null };
+    if (R.shared) { while (shared.length < R.hand) shared.push(s.deck.pop()); }
+    else s.players.forEach(function (p) { p.hand.push(s.deck.pop(), s.deck.pop()); });
     return s;
   }
 
   function clone(s) {
+    var sharedHand = s.shared ? s.players[0].hand.slice() : null;
     return {
-      n: s.n,
-      players: s.players.map(function (p) { return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, hand: p.hand.slice() }; }),
+      n: s.n, size: s.size, handMax: s.handMax, shared: s.shared,
+      players: s.players.map(function (p) {
+        return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, hand: sharedHand || p.hand.slice() };
+      }),
       cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat } : null; }),
+      vo: new Int8Array(s.vo), markers: s.markers.slice(), exits: s.exits,
       deck: s.deck, current: s.current, turn: s.turn, passes: s.passes, phase: s.phase, last: s.last, log: null, _f: null
     };
   }
@@ -96,23 +125,21 @@
     return (right !== undefined && !(arms(right) & DW)) || (left !== undefined && !(arms(left) & DE));
   }
 
-  /* 格子点の まわりの 4マスと、その マスの どの ¼か */
   var AROUND = [[-1, -1, 'SE'], [0, -1, 'SW'], [-1, 0, 'NE'], [0, 0, 'NW']];
   var QUAD_ARMS = { NW: DN | DW, NE: DN | DE, SW: DS | DW, SE: DS | DE };
 
-  /** 面を まるごと 計算（格子点 100個の 塗りつぶし） */
+  /** 面を まるごと 計算（格子点の 塗りつぶし）。盤の 端は 境界、出口に ふれた 面は 点なし */
   function computeFaces(s) {
     var of = new Int16Array(V * V).fill(-1), faces = [];
     for (var v0 = 0; v0 < V * V; v0++) {
       if (of[v0] >= 0) continue;
-      var f = { id: faces.length, verts: [], area: 0, closed: true, edge: false, border: {}, w: [0, 0, 0, 0], tops: [], owner: null };
+      var f = { id: faces.length, verts: [], area: 0, closed: true, exit: false, border: {}, w: [0, 0, 0, 0], tops: [], owner: null };
       var stack = [v0];
       of[v0] = f.id;
       while (stack.length) {
         var v = stack.pop(), vx = v % V, vy = (v / V) | 0;
         f.verts.push(v);
-        /* 盤の 端に ふれた 面は、猫道だけで かこまれて いないので なわばりに ならない */
-        if (vx === 0 || vy === 0 || vx === V - 1 || vy === V - 1) f.edge = true;
+        if (s.exits[v]) f.exit = true;
         AROUND.forEach(function (a) {
           var x = vx + a[0], y = vy + a[1], t = tileAt(s, x, y);
           if (t === undefined) return;
@@ -121,13 +148,13 @@
           if (t.m & QUAD_ARMS[a[2]]) f.border[y * SIZE + x] = true; /* この 面に 面した 猫道 */
         });
         var nbrs = [];
-        if (vx < V - 1 && vy < V && connH(s, vx, vy)) nbrs.push(v + 1);
+        if (vx < V - 1 && connH(s, vx, vy)) nbrs.push(v + 1);
         if (vx > 0 && connH(s, vx - 1, vy)) nbrs.push(v - 1);
         if (vy < V - 1 && connV(s, vx, vy)) nbrs.push(v + V);
         if (vy > 0 && connV(s, vx, vy - 1)) nbrs.push(v - V);
         nbrs.forEach(function (u) { if (of[u] < 0) { of[u] = f.id; stack.push(u); } });
       }
-      if (f.edge) f.closed = false;
+      /* 同じ ねこは、同じ 面では 何か所で ふれても 1票 */
       Object.keys(f.border).forEach(function (c) {
         var t = s.cells[c];
         if (t && t.cat !== null) f.w[t.cat]++;
@@ -140,22 +167,50 @@
     return { of: of, faces: faces };
   }
   function faces(s) { if (!s._f) s._f = computeFaces(s); return s._f; }
+  function scorable(f) { return f.closed && !f.exit && f.area > 0; }
+  function isScored(s, f) { return s.vo[f.verts[0]] !== UNSCORED; }
 
-  /** 面の 点：完成した 面だけ。同数なら はんぶんずつ */
-  function faceValue(f) {
-    if (!f.closed || !f.tops.length) return 0;
-    return f.tops.length > 1 ? Math.floor(f.area / 2) : f.area;
-  }
-  function scores(s) {
-    var sc = s.players.map(function () { return 0; });
-    faces(s).faces.forEach(function (f) { var v = faceValue(f); f.tops.forEach(function (p) { sc[p] += v; }); });
-    return sc;
+  /** 面の まん中に いちばん ちかい 格子点（目じるしの ねこを おく 場所） */
+  function centerVert(f) {
+    var sx = 0, sy = 0;
+    f.verts.forEach(function (v) { sx += v % V; sy += (v / V) | 0; });
+    sx /= f.verts.length; sy /= f.verts.length;
+    var best = f.verts[0], bd = Infinity;
+    f.verts.forEach(function (v) {
+      var d = Math.pow(v % V - sx, 2) + Math.pow(((v / V) | 0) - sy, 2);
+      if (d < bd) { bd = d; best = v; }
+    });
+    return best;
   }
 
-  /** おける？：となりに タイルが ある。
-      となりから むかって きて いる 猫道は ぜんぶ うけとめて つなげる（猫道を とちゅうで ふさがない）。
-      こちらから 出す 猫道は、となりに 道が なくても よい（行き止まりに なるだけ）。
-      猫道が きて いない 空きマスには どの タイルでも おける */
+  /** あたらしく 完成した 面を 採点する。できごとの 一覧を かえす */
+  function settle(s) {
+    var events = [];
+    faces(s).faces.forEach(function (f) {
+      if (!scorable(f) || isScored(s, f)) return;
+      var k = f.tops.length;
+      var mark = k === 0 ? NOBODY : k > 1 ? TIE : f.tops[0];
+      f.verts.forEach(function (v) { s.vo[v] = mark; });
+      var pts = k ? Math.floor(f.area / k) : 0;              /* 同率首位は 人数で わって 切りすて */
+      f.tops.forEach(function (p) { s.players[p].score += pts; });
+      /* 境界の ねこは 全員 手もとへ */
+      Object.keys(f.border).forEach(function (c) {
+        var t = s.cells[c];
+        if (t && t.cat !== null) { s.players[t.cat].catsLeft++; t.cat = null; }
+      });
+      /* 持ち主は なわばりの 中に 目じるしの ねこを 1匹 */
+      if (k === 1) { s.players[f.tops[0]].catsLeft--; s.markers.push({ v: centerVert(f), p: f.tops[0] }); }
+      events.push({ tops: f.tops.slice(), area: f.area, pts: pts });
+    });
+    if (events.length) s._f = null;
+    return events;
+  }
+
+  /** 合計点：なわばりの 点 ＋ 手もとの ねこ */
+  function totals(s) { return s.players.map(function (p) { return p.score + p.catsLeft; }); }
+
+  /** おける？：となりに タイルが ある。となりから むかって くる 猫道は ぜんぶ うけとめる。
+      こちらから 出す 猫道は 行き止まりでも よい */
   function canPlace(s, c, m) {
     if (s.cells[c]) return false;
     var adj = false;
@@ -176,7 +231,7 @@
   /** ねこは いま おいた タイルの 猫道の 上だけ */
   function canCat(s, c) { var t = s.cells[c]; return !!t && t.m !== 0 && t.cat === null && c === s.last && s.players[s.current].catsLeft > 0; }
   function putCat(s, c) { s.cells[c].cat = s.current; s.players[s.current].catsLeft--; s._f = null; }
-  function discard(s, hi) { s.players[s.current].hand.splice(hi, 1); }
+  
 
   function anyPlace(s, P) {
     for (var hi = 0; hi < P.hand.length; hi++)
@@ -190,7 +245,17 @@
   /* ---------- ターン ---------- */
   function startTurn(s) {
     var P = s.players[s.current];
-    if (P.hand.length < HAND_MAX && s.deck.length) P.hand.push(s.deck.pop());
+    while (P.hand.length < s.handMax && s.deck.length && (s.shared || P.hand.length < s.handMax)) {
+      P.hand.push(s.deck.pop());
+      if (!s.shared) break;   /* 手札は 1まいずつ。場の タイルは 4まいに なるまで */
+    }
+    /* どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動） */
+    s.swapped = 0;
+    while (P.hand.length && s.deck.length && !anyPlace(s, P)) {
+      P.hand.shift();
+      P.hand.push(s.deck.pop());
+      s.swapped++;
+    }
     var noTiles = !s.deck.length && s.players.every(function (q) { return !q.hand.length; });
     if (noTiles || s.cells.every(Boolean)) finish(s);
   }
@@ -201,20 +266,20 @@
     s.current = (s.current + 1) % s.n;
     startTurn(s);
   }
-  function finish(s) { s.phase = 'over'; s.final = scores(s); }
+  function finish(s) { s.phase = 'over'; s.final = totals(s); }
 
   /* =========================================================
      CPU：1手 先を 読む よくばり 探索
      ========================================================= */
   function evaluate(s, p) {
-    var sc = scores(s), best = -Infinity;
-    for (var i = 0; i < s.n; i++) if (i !== p) best = Math.max(best, sc[i]);
-    var v = (sc[p] - best) * 2 + s.players[p].catsLeft * 1.5;
-    /* 未完成の 面：いま 多数派なら 面積の 一部を 見込む（大きすぎる 面は 見込みを 小さく） */
+    var tot = totals(s), best = -Infinity;
+    for (var i = 0; i < s.n; i++) if (i !== p) best = Math.max(best, tot[i]);
+    var v = (tot[p] - best) * 2;
+    /* 未完成で 点に なりうる 面：いま 多数派なら 面積の 一部を 見込む */
     faces(s).faces.forEach(function (f) {
-      if (f.closed || !f.tops.length) return;
+      if (f.closed || f.exit || !f.tops.length) return;
       var share = f.tops.indexOf(p) >= 0 ? 1 / f.tops.length : -1 / Math.max(1, s.n - 1);
-      v += share * Math.min(f.area, 40) * 0.35;
+      v += share * Math.min(f.area, 40) * 0.4;
     });
     return v;
   }
@@ -223,6 +288,7 @@
     var p = s.current, P = s.players[p];
     var best = { v: -Infinity, act: null };
     function consider(s2, act) {
+      settle(s2);
       var v = evaluate(s2, p) + Math.random() * 0.05;
       if (v > best.v) best = { v: v, act: act };
     }
@@ -236,13 +302,12 @@
           if (!canPlace(s, c, m)) continue;
           var s1 = clone(s);
           placeTile(s1, hi, r, c);
-          consider(s1, { type: 'place', hi: hi, r: r, c: c });
           if (canCat(s1, c)) { var s2 = clone(s1); putCat(s2, c); consider(s2, { type: 'place', hi: hi, r: r, c: c, cat: true }); }
+          consider(s1, { type: 'place', hi: hi, r: r, c: c });
         }
       }
     });
-    if (best.act) return best.act;
-    return P.hand.length ? { type: 'discard', hi: 0 } : { type: 'pass' };
+    return best.act || { type: 'pass' };
   }
 
   /* =========================================================
@@ -279,7 +344,7 @@
       '<image href="' + url + '" x="' + (-c * 340) + '" y="' + (-r * 340) + '" width="1020" height="1020" /></svg>';
   }
 
-  /** o.quads：{NW: 色, ...} 完成した なわばりの ¼マスの 色 */
+  /** o.quads：{NW: 色, ...} 採点ずみの なわばりの ¼マスの 色 */
   function tileSVG(t, o) {
     o = o || {};
     var s = ['<rect width="100" height="100" fill="var(--ground)" />'];
@@ -308,8 +373,8 @@
       s.push('<circle cx="50" cy="50" r="10" fill="var(--path)" stroke="var(--path-edge)" stroke-width="2.5" />');
       DIRS.forEach(function (d) {
         if (!(t.m & d)) return;
-        var e = EDGE_MID[d], mx = (50 + e[0]) / 2, my = (50 + e[1]) / 2;
-        s.push('<circle cx="' + mx + '" cy="' + my + '" r="3" fill="var(--path-edge)" opacity=".7" />');   /* 飛び石 */
+        var e = EDGE_MID[d];
+        s.push('<circle cx="' + (50 + e[0]) / 2 + '" cy="' + (50 + e[1]) / 2 + '" r="3" fill="var(--path-edge)" opacity=".7" />');
       });
     }
     if (t.cat !== null && t.cat !== undefined) {
@@ -354,6 +419,7 @@
 
   function renderSetup() {
     var active = setup.seats.filter(function (s) { return s.mode !== 'off'; }).length;
+    var R = RULES_BY_N[Math.max(2, active)];
     var rows = setup.seats.map(function (st, i) {
       var modes = [['human', 'ひと'], ['cpu', 'CPU']];
       if (i >= 2) modes.push(['off', 'なし']);
@@ -370,89 +436,104 @@
       '<p class="nn-hero__lead">猫道を のばして つなげ、<br>かこんだ ところを なわばりに しよう。</p>' +
       '<ul class="nn-hero__points">' +
       '<li>🐾 <b>猫道を のばす</b>：タイルの 猫道を となりに つなげて おく</li>' +
-      '<li>🔁 <b>かこむ</b>：猫道で ぐるりと かこんだ 面が なわばり</li>' +
-      '<li>🐈 <b>見はる</b>：まわりの 猫道に ねこが 多い 人の もの</li>' +
+      '<li>🔁 <b>かこむ</b>：猫道と 盤の 端で かこんだ 面が なわばり（出口🚪に ふれたら ×）</li>' +
+      '<li>🐈 <b>見はる</b>：まわりの 猫道に ねこが 多い 人の もの。完成したら ねこは もどる</li>' +
       '</ul></div>' +
       '<section class="nn-card"><h2 class="nn-card__title">だれが あそぶ？（2〜4人）</h2>' + rows +
+      '<p class="nn-card__note">' + active + '人：盤 ' + R.size + '×' + R.size + '・ねこ ' + R.cats + '匹' + (R.shared ? '・場の タイル 4まいから えらぶ' : '・手札 3まいまで') + '</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="start"' + (active < 2 ? ' disabled' : '') + '>あそぶ</button></section></div>';
   }
 
   function renderScore() {
-    var sc = game.phase === 'playing' ? scores(game) : game.final;
+    var tot = game.phase === 'playing' ? totals(game) : game.final;
     return '<div class="nn-score">' + game.players.map(function (p, i) {
       var cur = i === game.current && game.phase === 'playing';
       return '<div class="nn-pl' + (cur ? ' is-current' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         catFace(p.cat, 'nn-pl__face', cur ? [false, 1, 0] : null) +
         '<span class="nn-pl__body"><span class="nn-pl__name">' + CATS[p.cat].name + (p.human ? '' : '<small>CPU</small>') + '</span>' +
-        '<span class="nn-pl__pts">' + sc[i] + '<small>点</small></span>' +
-        '<span class="nn-pl__left">🐾のこり ' + p.catsLeft + '</span></span></div>';
+        '<span class="nn-pl__pts">' + tot[i] + '<small>点</small></span>' +
+        '<span class="nn-pl__left">🏠' + p.score + ' ＋ 🐾手もと' + p.catsLeft + '</span></span></div>';
     }).join('') + '</div>';
   }
 
   function renderStatus() {
     var P = game.players[game.current], t;
     if (isAi()) t = pname(game.current) + 'の ばん … かんがえちゅう';
-    else if (ui.mode === 'follow') t = 'おいた 猫道に ねこを おく？';
-    else t = pname(game.current) + 'の ばん：手札を えらんで 盤に おく';
+    else if (ui.mode === 'follow') t = 'おいた 猫道に ねこを おく？（手もとの ねこは 1匹 1点）';
+    else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで 盤に おく';
     return '<p class="nn-status" style="--pc:' + CATS[P.cat].color + '">' + esc(t) + '</p>';
   }
 
   function renderPanel() {
     var P = game.players[game.current];
     var deckInfo = '<span class="nn-deck">山札 ' + game.deck.length + '</span>';
+    var label = game.shared ? '<span class="nn-deck">場（共通）</span>' : '';
     if (isAi()) {
-      return '<div class="nn-panel nn-hand">' + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
+      return '<div class="nn-panel nn-hand">' + label + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
     }
     if (ui.mode === 'follow') {
       return '<div class="nn-panel nn-panel--act">' +
-        '<button type="button" class="nn-btn nn-btn--cat" data-action="cat">🐾 ねこを おく（のこり' + P.catsLeft + '）</button>' +
+        '<button type="button" class="nn-btn nn-btn--cat" data-action="cat">🐾 ねこを おく（手もと ' + P.catsLeft + '）</button>' +
         '<button type="button" class="nn-btn nn-btn--sub" data-action="done">おかない</button></div>';
     }
-    var hint = '';
-    if (!P.hand.length) hint = '手札が ない…パスしてね';
-    else if (!anyPlace(game, P)) hint = 'どの 手札も おけない…1まい すてるか パス';
+    var can = anyPlace(game, P), hint = '';
+    if (!P.hand.length) hint = 'タイルが ない…パスしてね';
+    else if (!can) hint = '山札が なくなって、おける タイルが ない…パスしてね';
     else if (ui.sel !== null) {
       var m = rot(P.hand[ui.sel].m, ui.rot), np = 0;
       for (var c = 0; c < N; c++) if (canPlace(game, c, m)) np++;
       hint = np ? 'きいろの マスに おける（もう一度 タップで まわす）' : 'この むきでは おけない。まわしてみて';
     }
-    return '<div class="nn-panel nn-hand">' +
+    return '<div class="nn-panel nn-hand">' + label +
       P.hand.map(function (t, i) {
         var sel = i === ui.sel;
-        return '<button type="button" class="nn-hand__tile' + (sel ? ' is-sel' : '') + '" data-action="hand" data-i="' + i + '" aria-label="手札' + (i + 1) + '">' +
+        return '<button type="button" class="nn-hand__tile' + (sel ? ' is-sel' : '') + '" data-action="hand" data-i="' + i + '" aria-label="タイル' + (i + 1) + '">' +
           tileSVG({ m: sel ? rot(t.m, ui.rot) : t.m, uid: t.uid, cat: null }) + '</button>';
       }).join('') + deckInfo +
       '<p class="nn-panel__hint">' + esc(hint) + '</p>' +
       '<div class="nn-panel__row">' +
-      (ui.sel !== null ? '<button type="button" class="nn-btn nn-btn--small" data-action="rotate">↻ まわす</button>' : '') +
-      (ui.sel !== null ? '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="discard">すてる</button>' : '') +
-      '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="pass">パス</button></div></div>';
+      (ui.sel !== null && can ? '<button type="button" class="nn-btn nn-btn--small" data-action="rotate">↻ まわす</button>' : '') +
+      (!can ? '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="pass">パス</button>' : '') +
+      '</div></div>';
+  }
+
+  /* 格子点の 位置（盤の 端の 格子点は 少し 内がわへ よせて 枠から はみ出さない ように） */
+  function vertPos(v) {
+    var x = Math.min(SIZE - 0.3, Math.max(0.3, v % V)), y = Math.min(SIZE - 0.3, Math.max(0.3, (v / V) | 0));
+    return 'left:' + (x / SIZE * 100) + '%;top:' + (y / SIZE * 100) + '%';
   }
 
   function renderBoard() {
-    var F = faces(game), P = game.players[game.current], mark = {};
+    var P = game.players[game.current], mark = {};
     if (game.phase === 'playing' && !isAi() && ui.mode === 'tile' && ui.sel !== null && P.hand[ui.sel]) {
       var m = rot(P.hand[ui.sel].m, ui.rot);
       for (var c = 0; c < N; c++) if (canPlace(game, c, m)) mark[c] = 'is-place';
+    }
+    function quadColor(vx, vy) {
+      var o = game.vo[vy * V + vx];
+      if (o >= 0) return CATS[game.players[o].cat].color;
+      return o === TIE ? '#8a8a8a' : null;
     }
     var cells = '';
     for (var i = 0; i < N; i++) {
       var t = game.cells[i], x = i % SIZE, y = (i / SIZE) | 0;
       var cls = 'nn-cell' + (mark[i] ? ' ' + mark[i] : '') + (i === game.last ? ' is-last' : '') + (t ? '' : ' is-empty');
-      var inner = '';
-      if (t) {
-        /* ¼マスごとに、その 角の 格子点が 入る 面を 見て 色を つける */
-        var quads = {};
-        [['NW', x, y], ['NE', x + 1, y], ['SW', x, y + 1], ['SE', x + 1, y + 1]].forEach(function (q) {
-          var f = F.faces[F.of[q[2] * V + q[1]]];
-          if (f.closed) quads[q[0]] = f.owner !== null ? CATS[game.players[f.owner].cat].color : (f.tops.length ? '#8a8a8a' : null);
-        });
-        inner = tileSVG(t, { quads: quads });
-      }
+      var inner = t ? tileSVG(t, { quads: { NW: quadColor(x, y), NE: quadColor(x + 1, y), SW: quadColor(x, y + 1), SE: quadColor(x + 1, y + 1) } }) : '';
       cells += mark[i] ? '<button type="button" class="' + cls + '" data-action="cell" data-c="' + i + '">' + inner + '</button>'
         : '<div class="' + cls + '">' + inner + '</div>';
     }
-    return '<div class="nn-board-box"><div class="nn-board">' + cells + '</div></div>';
+    /* なわばりの 目じるしの ねこ（格子点の 上） */
+    var extra = game.markers.map(function (mk) {
+      var pl = game.players[mk.p];
+      return '<span class="nn-marker" style="' + vertPos(mk.v) + ';--pc:' + CATS[pl.cat].color + '">' + catFace(pl.cat, 'nn-marker__face', [true, 1, 1]) + '</span>';
+    }).join('');
+    /* 出口（四辺の まん中） */
+    var mid = (SIZE - 1) / 2 + 0.5;
+    [['top', mid, 0], ['bottom', mid, SIZE], ['left', 0, mid], ['right', SIZE, mid]].forEach(function (e) {
+      extra += '<span class="nn-exit is-' + e[0] + '" style="left:' + (e[1] / SIZE * 100) + '%;top:' + (e[2] / SIZE * 100) + '%" title="出口">🚪</span>';
+    });
+    return '<div class="nn-board-box"><div class="nn-board" style="grid-template-columns:repeat(' + SIZE + ',1fr);grid-template-rows:repeat(' + SIZE + ',1fr)">' +
+      cells + extra + '</div></div>';
   }
 
   function renderLog() {
@@ -467,12 +548,12 @@
       var p = game.players[i], win = game.final[i] === top;
       return '<div class="nn-final__row' + (win ? ' is-win' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         '<span class="nn-final__rank">' + (rank + 1) + '</span>' + catFace(p.cat, 'nn-final__face', win ? [false, 1, 2] : null) +
-        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '</span>' +
+        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '<small>なわばり ' + p.score + '・手もとの ねこ ' + p.catsLeft + '</small></span>' +
         '<span class="nn-final__pts">' + game.final[i] + '点</span></div>';
     }).join('');
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
       '<div class="nn-final">' + rows + '</div>' +
-      '<p class="nn-modal__note">かこんだ 面の ¼マス＝1点（同数は はんぶんずつ）</p>' +
+      '<p class="nn-modal__note">なわばりの ¼マス＝1点 ＋ 手もとに のこった ねこ 1匹＝1点</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
       '<button type="button" class="nn-btn nn-btn--sub" data-action="view">盤面を みる</button></div></div>';
   }
@@ -480,19 +561,23 @@
   function renderRules() {
     return '<div class="nn-overlay" data-action="close-rules"><div class="nn-modal nn-rules" data-action="noop">' +
       '<div class="nn-modal__head"><h2 class="nn-modal__title">あそびかた</h2><button type="button" class="nn-modal__close" data-action="close-rules" aria-label="とじる">✕</button></div>' +
-      '<h3>タイルを おく</h3><ul>' +
-      '<li>盤は 9×9。まん中の 十字から はじめる。枠の 外へは ひろがらない。</li>' +
+      '<h3>じゅんび</h3><ul>' +
+      '<li>3〜4人：盤 9×9。手札は 3まいまで（はじめは 2まい）。ねこ 3人 6匹・4人 5匹。</li>' +
+      '<li>2人：盤 7×7。場に 4まい ならんだ 共通の タイルから えらぶ。ねこ 7匹。</li>' +
+      '<li>まん中に 十字の タイルを おいて はじめる。</li>' +
+      '</ul><h3>タイルを おく</h3><ul>' +
       '<li>タイルには 猫道が 0〜4本（中心から 辺の まん中へ）。</li>' +
-      '<li>じぶんの ばんに 1まい 引く（手札は 3まいまで）。1まい えらんで、となりに おく。<b>となりから きて いる 猫道は ぜんぶ うけとめて つなげる</b>（猫道を とちゅうで ふさがない）。こちらから 出す 猫道は、となりに 道が なくても よい（行き止まりに なるだけ）。</li>' +
+      '<li>すでに ある タイルの となりに おく。<b>となりから きて いる 猫道は ぜんぶ うけとめて つなげる</b>。こちらから 出す 猫道は 行き止まりでも よい。</li>' +
       '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おいて よい。</li>' +
-      '<li>どこにも おけない ときは 1まい すてて よい。</li>' +
+      '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
-      '<li>猫道は 境界線。<b>猫道だけで ぐるりと かこまれた 面</b>が なわばり。盤の 端に ふれて いる 面は なわばりに ならない。分岐・合流・行き止まりが あっても よい。</li>' +
-      '<li>面の 中に 空きマスが なくなったら 完成。その 面に 面した 猫道の 上の ねこが いちばん 多い 人の なわばりに なり、色が つく（1匹の ねこは 両がわの 面に 数える）。</li>' +
-      '<li>同数なら 灰色で、点は はんぶんずつ。</li>' +
-      '</ul><h3>おわりと 点数</h3><ul>' +
-      '<li>盤が うまるか、山札と 手札が なくなるか、全員が つづけて パスしたら おしまい。</li>' +
-      '<li>完成した なわばりの 面積 ¼マス＝1点。完成して いない 面は 0点。</li>' +
+      '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中の <b>出口🚪に ふれた 面は 0点</b>。</li>' +
+      '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
+      '<li>同数なら 点を 人数で わって 切りすて。</li>' +
+      '<li>採点したら、<b>境界の ねこは 全員 手もとへ もどる</b>。なわばりを とった 人は、その 中に 目じるしの ねこを 1匹 おく（もどらない）。</li>' +
+      '</ul><h3>おわり</h3><ul>' +
+      '<li>盤が うまるか、山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
+      '<li><b>手もとに のこった ねこ 1匹＝1点</b>。完成して いない 面は 0点で、その 上の ねこは 点に ならない。</li>' +
       '</ul></div></div>';
   }
 
@@ -504,31 +589,20 @@
     if (seats.length < 2) return;
     clearAi();
     toasts = []; renderToasts();
-    lastClosed = {};
     game = newGame(seats);
     startTurn(game);
     resetUi();
     render();
   }
 
-  /* 番の おわりに、あたらしく 完成した なわばりを しらせる */
-  var lastClosed = {};
-  function announceClosures() {
-    var now = {};
-    faces(game).faces.forEach(function (f) {
-      if (!f.closed || !f.area) return;
-      var k = f.verts.slice().sort(function (a, b) { return a - b; }).join('-');
-      now[k] = true;
-      if (lastClosed[k]) return;
-      if (f.owner !== null) say('🏠 ' + pname(f.owner) + 'の なわばり 完成（' + f.area + '点）', 'score');
-      else if (f.tops.length) say('なわばりが 同数で 完成（' + f.tops.map(pname).join('・') + 'で はんぶんずつ）', '');
-    });
-    lastClosed = now;
-  }
-
   function afterAction(acted) {
-    announceClosures();
+    settle(game).forEach(function (e) {
+      if (e.tops.length === 1) say('🏠 ' + pname(e.tops[0]) + 'の なわばり 完成！ +' + e.pts + '点（境界の ねこは 手もとへ）', 'score');
+      else if (e.tops.length > 1) say('なわばりが 同数で 完成（' + e.tops.map(pname).join('・') + 'に ' + e.pts + '点ずつ）', '');
+      else say('面が とじた（ねこが いないので だれの ものでも ない）', '');
+    });
     endTurn(game, acted);
+    if (game.phase === 'playing' && game.swapped) say(pname(game.current) + '：おける タイルが なかったので ' + game.swapped + 'まい 引きなおした', '');
     resetUi();
     render();
   }
@@ -541,7 +615,6 @@
       if (!isAi()) return;
       var p = game.current, act = cpuChoose(game);
       if (act.type === 'pass') { say(pname(p) + '：パス', ''); afterAction(false); return; }
-      if (act.type === 'discard') { discard(game, act.hi); say(pname(p) + '：手札を 1まい すてた', ''); afterAction(true); return; }
       placeTile(game, act.hi, act.r, act.c);
       if (act.cat) putCat(game, act.c);
       afterAction(true);
@@ -574,8 +647,7 @@
       if (canCat(game, c)) { ui.mode = 'follow'; render(); } else afterAction(true);
     } else if (a === 'cat' && canCat(game, game.last)) { putCat(game, game.last); afterAction(true); }
     else if (a === 'done') afterAction(true);
-    else if (a === 'discard' && ui.sel !== null) { discard(game, ui.sel); say(pname(game.current) + '：手札を 1まい すてた', ''); afterAction(true); }
-    else if (a === 'pass') { say(pname(game.current) + '：パス', ''); afterAction(false); }
+    else if (a === 'pass' && !anyPlace(game, P)) { say(pname(game.current) + '：パス', ''); afterAction(false); }
   });
 
   document.addEventListener('keydown', function (e) {
@@ -585,8 +657,8 @@
 
   /* テスト用 */
   window.NNS = {
-    newGame: newGame, computeFaces: computeFaces, canPlace: canPlace, placeTile: placeTile, putCat: putCat,
-    scores: scores, rot: rot, getGame: function () { return game; }
+    newGame: newGame, computeFaces: computeFaces, canPlace: canPlace, placeTile: placeTile, putCat: putCat, settle: settle,
+    totals: totals, rot: rot, getGame: function () { return game; }
   };
 
   render();
