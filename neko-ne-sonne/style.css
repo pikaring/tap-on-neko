@@ -10,10 +10,12 @@
   --c-sub: #5b5048;
   --c-line: #3a2a20;
 
-  --wood: #e9c98c;
-  --wood-line: #d8b273;
-  --ink: #3a2a20;
-  --fence: #a0583a;
+  /* タイル：上から 見た 街区（地面・屋根・木）と 猫道 */
+  --ground: #e9e2c9;
+  --tree: #9cc47a;
+  --roof: #e9a07a;
+  --path: #d7b98a;
+  --path-edge: #8a6440;
 }
 
 * { box-sizing: border-box; }
@@ -86,8 +88,6 @@ button:focus-visible, a:focus-visible { outline: 4px solid #ffb300; outline-offs
 .nn-btn:disabled { opacity: .4; cursor: default; }
 .nn-btn--go { font-size: 22px; min-height: 60px; margin-top: 6px; }
 .nn-btn--cat { background: var(--c-green); }
-.nn-btn--boss { background: #b8860b; }
-.nn-btn--wall { background: var(--fence); }
 .nn-btn--sub { background: #fff; color: var(--c-line); border-color: #d8cfc3; }
 .nn-btn--small { width: auto; min-height: 44px; font-size: 15px; }
 
@@ -147,25 +147,13 @@ button:focus-visible, a:focus-visible { outline: 4px solid #ffb300; outline-offs
 .nn-cell.is-empty { border: 1px dashed rgba(58, 42, 32, .28); }
 button.nn-cell { cursor: pointer; }
 .nn-cell.is-place { background: rgba(255, 227, 110, .75); box-shadow: inset 0 0 0 3px #e0a000; }
-.nn-cell.is-erode::after { content: '⚔️'; position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(14px, 4vw, 26px); background: rgba(179, 38, 30, .35); box-shadow: inset 0 0 0 3px #b3261e; }
-.nn-cell.is-cat::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--c-green); background: rgba(47, 93, 58, .18); }
 .nn-cell.is-last { box-shadow: inset 0 0 0 3px #fff, 0 0 0 2px var(--c-go); z-index: 1; }
 
-/* 壁コマ：辺の 上の 太い 棒 */
-.nn-wall, .nn-edge { position: absolute; transform: translate(-50%, -50%); z-index: 2; padding: 0; border: 0; }
-.nn-wall { background: #5a3322; border: 2px solid #fff3dc; border-radius: 4px; }
-.nn-wall.is-v { width: 9px; height: calc(100% / 9 * .92); }
-.nn-wall.is-h { height: 9px; width: calc(100% / 9 * .92); }
-.nn-edge { background: rgba(160, 88, 58, .35); border: 2px dashed var(--fence); border-radius: 6px; cursor: pointer; z-index: 3; }
-.nn-edge.is-v { width: 18px; height: calc(100% / 9 * .8); }
-.nn-edge.is-h { height: 18px; width: calc(100% / 9 * .8); }
-.nn-edge:hover, .nn-edge:focus-visible { background: rgba(160, 88, 58, .8); }
 
 /* ---- できごと ---- */
 .nn-log { list-style: none; margin: 0; padding: 8px 12px; background: #fff; border: 2px solid #d8cfc3; border-radius: 14px; font-size: 14px; color: var(--c-sub); }
 .nn-log li + li { margin-top: 2px; opacity: .8; }
 .nn-log .is-score { color: var(--c-green); }
-.nn-log .is-erode { color: #b3261e; }
 
 .nn-toasts {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 20;
@@ -173,7 +161,6 @@ button.nn-cell { cursor: pointer; }
 }
 .nn-toast { padding: 8px 14px; border-radius: 14px; background: rgba(27, 27, 27, .88); color: #fff; font-size: 15px; text-align: center; }
 .nn-toast.is-score { background: rgba(47, 93, 58, .95); }
-.nn-toast.is-erode { background: rgba(179, 38, 30, .95); }
 @media (prefers-reduced-motion: no-preference) { .nn-toast { animation: nn-up .25s ease-out both; } }
 @keyframes nn-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
