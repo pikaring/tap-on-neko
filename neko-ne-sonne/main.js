@@ -73,14 +73,16 @@
   /* =========================================================
      状態と ルール（描画と わけて ある。CPU も 同じ 関数を つかう）
      ========================================================= */
-  function newGame(seats) {
+  /** mode：'go'＝囲碁モード（猫は 無限。おいた 猫道は かならず 自分の 色）／'neko'＝猫街モード（猫に 限りあり） */
+  function newGame(seats, mode) {
     var n = seats.length, R = RULES_BY_N[n];
+    mode = mode || 'go';
     setSize(R.size);
     var shared = R.shared ? [] : null;
     var s = {
-      n: n, size: R.size, handMax: R.hand, shared: R.shared,
+      n: n, size: R.size, handMax: R.hand, shared: R.shared, mode: mode,
       players: seats.map(function (st, i) {
-        return { index: i, cat: st.cat, human: st.human, catsLeft: R.cats, score: 0, hand: shared || [] };
+        return { index: i, cat: st.cat, human: st.human, catsLeft: mode === 'go' ? 0 : R.cats, score: 0, captured: 0, hand: shared || [] };
       }),
       cells: new Array(N).fill(null),
       vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
@@ -98,9 +100,9 @@
   function clone(s) {
     var sharedHand = s.shared ? s.players[0].hand.slice() : null;
     return {
-      n: s.n, size: s.size, handMax: s.handMax, shared: s.shared,
+      n: s.n, size: s.size, handMax: s.handMax, shared: s.shared, mode: s.mode,
       players: s.players.map(function (p) {
-        return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, hand: sharedHand || p.hand.slice() };
+        return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, captured: p.captured, hand: sharedHand || p.hand.slice() };
       }),
       cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat } : null; }),
       vo: new Int8Array(s.vo), markers: s.markers.slice(), exits: s.exits,
@@ -193,7 +195,21 @@
       f.verts.forEach(function (v) { s.vo[v] = mark; });
       var pts = k ? Math.floor(f.area / k) : 0;              /* 同率首位は 人数で わって 切りすて */
       f.tops.forEach(function (p) { s.players[p].score += pts; });
-      /* 境界の ねこは 全員 手もとへ */
+      if (s.mode === 'go') {
+        /* 囲碁モード：持ち主が きまったら、境界の 相手の ねこを とる（盤から のぞき 1匹 1点）。自分の ねこは のこる */
+        var cap = 0;
+        if (k === 1) {
+          Object.keys(f.border).forEach(function (c) {
+            var t = s.cells[c];
+            if (t && t.cat !== null && t.cat !== f.tops[0]) { t.cat = null; cap++; }
+          });
+          s.players[f.tops[0]].score += cap;
+          s.players[f.tops[0]].captured += cap;
+        }
+        events.push({ tops: f.tops.slice(), area: f.area, pts: pts, cap: cap });
+        return;
+      }
+      /* 猫街モード：境界の ねこは 全員 手もとへ */
       Object.keys(f.border).forEach(function (c) {
         var t = s.cells[c];
         if (t && t.cat !== null) { s.players[t.cat].catsLeft++; t.cat = null; }
@@ -206,8 +222,8 @@
     return events;
   }
 
-  /** 合計点：なわばりの 点 ＋ 手もとの ねこ */
-  function totals(s) { return s.players.map(function (p) { return p.score + p.catsLeft; }); }
+  /** 合計点：なわばりの 点（囲碁モードは とった ねこを ふくむ）＋ 猫街モードは 手もとの ねこ */
+  function totals(s) { return s.players.map(function (p) { return p.score + (s.mode === 'go' ? 0 : p.catsLeft); }); }
 
   /** おける？：となりに タイルが ある。となりから むかって くる 猫道は ぜんぶ うけとめる。
       こちらから 出す 猫道は 行き止まりでも よい */
@@ -224,7 +240,8 @@
   }
   function placeTile(s, hi, r, c) {
     var t = s.players[s.current].hand.splice(hi, 1)[0];
-    s.cells[c] = { m: rot(t.m, r), uid: t.uid, cat: null };
+    /* 囲碁モード：猫道の ある タイルは おいた 人の 色（ねこが のる） */
+    s.cells[c] = { m: rot(t.m, r), uid: t.uid, cat: s.mode === 'go' && t.m ? s.current : null };
     s.last = c;
     s._f = null;
   }
@@ -364,13 +381,16 @@
       var e = EDGE_MID[d];
       s.push('<line x1="50" y1="50" x2="' + e[0] + '" y2="' + e[1] + '" stroke="var(--path-edge)" stroke-width="20" />');
     });
+    /* 囲碁モードでは 猫道を 持ち主の 色で ぬる（色つきの 線で 見る 囲碁） */
+    var owned = game && game.mode === 'go' && t.cat !== null && t.cat !== undefined;
+    var pathColor = owned ? CATS[game.players[t.cat].cat].color : 'var(--path)';
     DIRS.forEach(function (d) {
       if (!(t.m & d)) return;
       var e = EDGE_MID[d];
-      s.push('<line x1="50" y1="50" x2="' + e[0] + '" y2="' + e[1] + '" stroke="var(--path)" stroke-width="15" />');
+      s.push('<line x1="50" y1="50" x2="' + e[0] + '" y2="' + e[1] + '" stroke="' + pathColor + '" stroke-width="15"' + (owned ? ' opacity=".85"' : '') + ' />');
     });
     if (t.m) {
-      s.push('<circle cx="50" cy="50" r="10" fill="var(--path)" stroke="var(--path-edge)" stroke-width="2.5" />');
+      s.push('<circle cx="50" cy="50" r="10" fill="' + pathColor + '" stroke="var(--path-edge)" stroke-width="2.5" />');
       DIRS.forEach(function (d) {
         if (!(t.m & d)) return;
         var e = EDGE_MID[d];
@@ -379,8 +399,12 @@
     }
     if (t.cat !== null && t.cat !== undefined) {
       var pl = game.players[t.cat], col = CATS[pl.cat].color;
-      s.push('<ellipse cx="50" cy="76" rx="22" ry="7" fill="' + col + '" stroke="#fff" stroke-width="2.5" />');
-      s.push(sprite(pl.cat, false, 0, 0, 50, 50, 64));
+      if (owned) {
+        s.push(sprite(pl.cat, false, 0, 0, 50, 48, 50));                 /* 囲碁モードは ねこ 少し 小さめ */
+      } else {
+        s.push('<ellipse cx="50" cy="76" rx="22" ry="7" fill="' + col + '" stroke="#fff" stroke-width="2.5" />');
+        s.push(sprite(pl.cat, false, 0, 0, 50, 50, 64));
+      }
     }
     return '<svg viewBox="0 0 100 100" aria-hidden="true">' + s.join('') + '</svg>';
   }
@@ -393,7 +417,7 @@
 
   /* ---- 画面の 状態 ---- */
   var game = null;
-  var setup = { seats: [{ cat: 0, mode: 'human' }, { cat: 1, mode: 'cpu' }, { cat: 2, mode: 'off' }, { cat: 3, mode: 'off' }] };
+  var setup = { game: 'go', seats: [{ cat: 0, mode: 'human' }, { cat: 1, mode: 'cpu' }, { cat: 2, mode: 'off' }, { cat: 3, mode: 'off' }] };
   var ui = { sel: null, rot: 0, mode: 'tile' };
   var rulesOpen = false, aiTimer = null;
 
@@ -437,10 +461,18 @@
       '<ul class="nn-hero__points">' +
       '<li>🐾 <b>猫道を のばす</b>：タイルの 猫道を となりに つなげて おく</li>' +
       '<li>🔁 <b>かこむ</b>：猫道と 盤の 端で かこんだ 面が なわばり（出口🚪に ふれたら ×）</li>' +
-      '<li>🐈 <b>見はる</b>：まわりの 猫道に ねこが 多い 人の もの。完成したら ねこは もどる</li>' +
+      '<li>🐈 <b>見はる</b>：まわりの 猫道に ねこが 多い 人の もの</li>' +
       '</ul></div>' +
       '<section class="nn-card"><h2 class="nn-card__title">だれが あそぶ？（2〜4人）</h2>' + rows +
-      '<p class="nn-card__note">' + active + '人：盤 ' + R.size + '×' + R.size + '・ねこ ' + R.cats + '匹' + (R.shared ? '・場の タイル 4まいから えらぶ' : '・手札 3まいまで') + '</p>' +
+      '<h2 class="nn-card__title">モード</h2>' +
+      '<div class="nn-seat__modes nn-len">' +
+      '<button type="button" class="nn-chip' + (setup.game === 'go' ? ' is-on' : '') + '" data-action="gmode" data-g="go">囲碁モード（猫は 無限）</button>' +
+      '<button type="button" class="nn-chip' + (setup.game === 'neko' ? ' is-on' : '') + '" data-action="gmode" data-g="neko">猫街モード（猫に 限り）</button>' +
+      '</div>' +
+      '<p class="nn-card__note">' + (setup.game === 'go'
+        ? 'おいた 猫道は かならず 自分の 色。かこんだら 境界の 相手の ねこを とる'
+        : 'ねこは ' + R.cats + '匹。完成したら 手もとへ もどり、さいごに 手もとの ねこも 点') +
+      '<br>' + active + '人：盤 ' + R.size + '×' + R.size + (R.shared ? '・場の タイル 4まいから えらぶ' : '・手札 3まいまで') + '</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="start"' + (active < 2 ? ' disabled' : '') + '>あそぶ</button></section></div>';
   }
 
@@ -452,7 +484,7 @@
         catFace(p.cat, 'nn-pl__face', cur ? [false, 1, 0] : null) +
         '<span class="nn-pl__body"><span class="nn-pl__name">' + CATS[p.cat].name + (p.human ? '' : '<small>CPU</small>') + '</span>' +
         '<span class="nn-pl__pts">' + tot[i] + '<small>点</small></span>' +
-        '<span class="nn-pl__left">🏠' + p.score + ' ＋ 🐾手もと' + p.catsLeft + '</span></span></div>';
+        '<span class="nn-pl__left">' + (game.mode === 'go' ? '🏠' + (p.score - p.captured) + ' ＋ 🐾とった ' + p.captured : '🏠' + p.score + ' ＋ 🐾手もと' + p.catsLeft) + '</span></span></div>';
     }).join('') + '</div>';
   }
 
@@ -460,7 +492,7 @@
     var P = game.players[game.current], t;
     if (isAi()) t = pname(game.current) + 'の ばん … かんがえちゅう';
     else if (ui.mode === 'follow') t = 'おいた 猫道に ねこを おく？（手もとの ねこは 1匹 1点）';
-    else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで 盤に おく';
+    else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで 盤に おく' + (game.mode === 'go' ? '（猫道は じぶんの 色に なる）' : '');
     return '<p class="nn-status" style="--pc:' + CATS[P.cat].color + '">' + esc(t) + '</p>';
   }
 
@@ -548,12 +580,12 @@
       var p = game.players[i], win = game.final[i] === top;
       return '<div class="nn-final__row' + (win ? ' is-win' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         '<span class="nn-final__rank">' + (rank + 1) + '</span>' + catFace(p.cat, 'nn-final__face', win ? [false, 1, 2] : null) +
-        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '<small>なわばり ' + p.score + '・手もとの ねこ ' + p.catsLeft + '</small></span>' +
+        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '<small>' + (game.mode === 'go' ? 'なわばり ' + (p.score - p.captured) + '・とった ねこ ' + p.captured : 'なわばり ' + p.score + '・手もとの ねこ ' + p.catsLeft) + '</small></span>' +
         '<span class="nn-final__pts">' + game.final[i] + '点</span></div>';
     }).join('');
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
       '<div class="nn-final">' + rows + '</div>' +
-      '<p class="nn-modal__note">なわばりの ¼マス＝1点 ＋ 手もとに のこった ねこ 1匹＝1点</p>' +
+      '<p class="nn-modal__note">' + (game.mode === 'go' ? 'なわばりの ¼マス＝1点 ＋ とった ねこ 1匹＝1点' : 'なわばりの ¼マス＝1点 ＋ 手もとに のこった ねこ 1匹＝1点') + '</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
       '<button type="button" class="nn-btn nn-btn--sub" data-action="view">盤面を みる</button></div></div>';
   }
@@ -561,23 +593,27 @@
   function renderRules() {
     return '<div class="nn-overlay" data-action="close-rules"><div class="nn-modal nn-rules" data-action="noop">' +
       '<div class="nn-modal__head"><h2 class="nn-modal__title">あそびかた</h2><button type="button" class="nn-modal__close" data-action="close-rules" aria-label="とじる">✕</button></div>' +
-      '<h3>じゅんび</h3><ul>' +
-      '<li>3〜4人：盤 9×9。手札は 3まいまで（はじめは 2まい）。ねこ 3人 6匹・4人 5匹。</li>' +
-      '<li>2人：盤 7×7。場に 4まい ならんだ 共通の タイルから えらぶ。ねこ 7匹。</li>' +
+      '<h3>2つの モード</h3><ul>' +
+      '<li><b>囲碁モード（猫は 無限）</b>：猫道の ある タイルを おくと、かならず 自分の ねこが のり、猫道が 自分の 色に なる（タイルが 囲碁の 石）。なわばりが 完成したら、境界に いる <b>相手の ねこを とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。</li>' +
+      '<li><b>猫街モード（猫に 限り）</b>：ねこを おくかは えらぶ。下の「じゅんび」の かずだけ。完成したら 境界の ねこは 手もとへ もどり、さいごに 手もとの ねこ 1匹＝1点。</li>' +
+      '</ul><h3>じゅんび</h3><ul>' +
+      '<li>3〜4人：盤 9×9。手札は 3まいまで（はじめは 2まい）。猫街モードの ねこは 3人 6匹・4人 5匹。</li>' +
+      '<li>2人：盤 7×7。場に 4まい ならんだ 共通の タイルから えらぶ。猫街モードの ねこは 7匹。</li>' +
       '<li>まん中に 十字の タイルを おいて はじめる。</li>' +
       '</ul><h3>タイルを おく</h3><ul>' +
       '<li>タイルには 猫道が 0〜4本（中心から 辺の まん中へ）。</li>' +
       '<li>すでに ある タイルの となりに おく。<b>となりから きて いる 猫道は ぜんぶ うけとめて つなげる</b>。こちらから 出す 猫道は 行き止まりでも よい。</li>' +
-      '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おいて よい。</li>' +
+      '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おく（囲碁モードは 自動・猫街モードは えらぶ）。</li>' +
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中の <b>出口🚪に ふれた 面は 0点</b>。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
       '<li>同数なら 点を 人数で わって 切りすて。</li>' +
-      '<li>採点したら、<b>境界の ねこは 全員 手もとへ もどる</b>。なわばりを とった 人は、その 中に 目じるしの ねこを 1匹 おく（もどらない）。</li>' +
+      '<li>囲碁モード：持ち主は 境界の 相手の ねこを とる（1匹 1点）。自分の ねこは のこる。</li>' +
+      '<li>猫街モード：<b>境界の ねこは 全員 手もとへ もどる</b>。なわばりを とった 人は、その 中に 目じるしの ねこを 1匹 おく（もどらない）。</li>' +
       '</ul><h3>おわり</h3><ul>' +
       '<li>盤が うまるか、山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
-      '<li><b>手もとに のこった ねこ 1匹＝1点</b>。完成して いない 面は 0点で、その 上の ねこは 点に ならない。</li>' +
+      '<li>完成して いない 面は 0点。猫街モードは <b>手もとに のこった ねこ 1匹＝1点</b>。</li>' +
       '</ul></div></div>';
   }
 
@@ -589,7 +625,7 @@
     if (seats.length < 2) return;
     clearAi();
     toasts = []; renderToasts();
-    game = newGame(seats);
+    game = newGame(seats, setup.game);
     startTurn(game);
     resetUi();
     render();
@@ -597,7 +633,8 @@
 
   function afterAction(acted) {
     settle(game).forEach(function (e) {
-      if (e.tops.length === 1) say('🏠 ' + pname(e.tops[0]) + 'の なわばり 完成！ +' + e.pts + '点（境界の ねこは 手もとへ）', 'score');
+      if (e.tops.length === 1) say('🏠 ' + pname(e.tops[0]) + 'の なわばり 完成！ +' + e.pts + '点' +
+        (game.mode === 'go' ? (e.cap ? '、ねこを ' + e.cap + '匹 とった（+' + e.cap + '点）' : '') : '（境界の ねこは 手もとへ）'), 'score');
       else if (e.tops.length > 1) say('なわばりが 同数で 完成（' + e.tops.map(pname).join('・') + 'に ' + e.pts + '点ずつ）', '');
       else say('面が とじた（ねこが いないので だれの ものでも ない）', '');
     });
@@ -629,6 +666,7 @@
     if (a === 'rules') { rulesOpen = true; render(); return; }
     if (a === 'close-rules') { rulesOpen = false; render(); return; }
     if (a === 'seat') { setup.seats[Number(el.dataset.seat)].mode = el.dataset.mode; render(); return; }
+    if (a === 'gmode') { setup.game = el.dataset.g; render(); return; }
     if (a === 'start') { startGame(); return; }
     if (a === 'again') { clearAi(); game = null; render(); return; }
     if (a === 'view') { game.phase = 'viewing'; render(); return; }
