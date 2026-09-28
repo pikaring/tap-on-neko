@@ -727,10 +727,12 @@ function playGame(name, done) {
       result.textContent = msg + (got ? '  ＋' + got : '');
       result.className = 'wk-quiz__result ' + (ok ? 'is-ok' : 'is-ng');
       if (ok) { catBounce(); }
-      if (q.note && !q.speed) { box.appendChild(mk('p', 'wk-quiz__note', q.note)); }
+      /* 「つぎへ」は けっかの すぐ下に（画面から はみ出さない ように）。解説は その下で、読みたい 人は スクロール */
       var nextBtn = mk('div', 'wk-quiz__next');
       box.appendChild(nextBtn);
-      button(nextBtn, 'wk-btn--go', '', n >= g.count ? 'けっかへ' : 'つぎへ', '', ask);
+      var go = button(nextBtn, 'wk-btn--go', '', n >= g.count ? 'けっかへ' : 'つぎへ', '', ask);
+      if (q.note && !q.speed) { box.appendChild(mk('p', 'wk-quiz__note', q.note)); }
+      try { go.scrollIntoView({ block: 'nearest' }); } catch (e) { /* なにもしない */ }
     }
 
     shuffle(q.choices).forEach(function (c) {
