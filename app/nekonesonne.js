@@ -720,7 +720,7 @@
     } else if (houseDirs.length) {
       if (houseDirs.length >= 2) s.push('<circle cx="50" cy="50" r="28" fill="var(--t-house)" />');
       houseDirs.forEach(function (d) {
-        s.push('<path d="' + HOUSE_PATH[d] + '" fill="var(--t-house)" stroke="var(--t-roof)" stroke-width="3.5" stroke-dasharray="6 2" />');
+        s.push('<path d="' + HOUSE_PATH[d] + '" fill="var(--t-house)" stroke="var(--t-roof)" stroke-width="3.5" />');
       });
       if (houseDirs.length >= 2) s.push('<circle cx="50" cy="50" r="27" fill="var(--t-house)" />');
     }
@@ -785,12 +785,12 @@
         pos = houseDirs.length === 4 ? [50, 50] : HOUSE_SPOT[mm.dir];
         pos = [(pos[0] + 50) / 2, (pos[1] + 50) / 2];
       }
-      pos = [Math.min(78, Math.max(22, pos[0])), Math.min(76, Math.max(22, pos[1]))];
+      pos = [Math.min(72, Math.max(28, pos[0])), Math.min(66, Math.max(30, pos[1]))];
       var pl = game.players[mm.player];
       /* うごいた ばかりの ねこだけ びっくり／あるく ポーズ。ふだんは おすわりか、きもちいい 場所で まるくなる */
       var pose = (game.moved[key(tile.x, tile.y)] && mm.pose) || (isComfy(tile) ? 'loaf' : 'idle');
-      s.push('<ellipse cx="' + pos[0] + '" cy="' + (pos[1] + 18) + '" rx="17" ry="6" fill="' + CATS[pl.cat].color + '" stroke="#fff" stroke-width="2" />');
-      s.push(spriteSVG(pl.cat, pose, pos[0], pos[1], 46));
+      s.push('<ellipse cx="' + pos[0] + '" cy="' + (pos[1] + 24) + '" rx="21" ry="7" fill="' + CATS[pl.cat].color + '" stroke="#fff" stroke-width="2" />');
+      s.push(spriteSVG(pl.cat, pose, pos[0], pos[1], 58));
     }
     return '<svg viewBox="0 0 100 100" aria-hidden="true">' + s.join('') + '</svg>';
   }
@@ -903,7 +903,7 @@
       var cur = i === game.current && game.phase === 'playing';
       return '<div class="nn-pl' + (cur ? ' is-current' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         catFace(p.cat, cur ? 'happy' : 'idle', 'nn-pl__face') +
-        '<span class="nn-pl__body"><span class="nn-pl__name">' + esc(pname(game, i)) + '</span>' +
+        '<span class="nn-pl__body"><span class="nn-pl__name">' + CATS[p.cat].name + (p.human ? '' : '<small>CPU</small>') + '</span>' +
         '<span class="nn-pl__pts">' + p.score + '<small>点</small></span>' +
         '<span class="nn-pl__left">🐾' + p.catsLeft + ' 🐙' + p.takoLeft + '</span></span></div>';
     }).join('') + '</div>';

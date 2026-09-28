@@ -756,7 +756,7 @@ body.is-title .wk-title__btns .wk-btn { min-height: 88px; padding: 6px 8px; font
 .wk-btn--endless { background: #1f7a3d; }
 .wk-btn--board { background: #d0526b; }
 /* タイトル画面：ネコネソンヌは 2つの 下に よこながで（高さは ひかえめ） */
-body.is-title .wk-title__btns .wk-btn--board { grid-column: 1 / -1; min-height: 64px; }
+body.is-title .wk-title__btns .wk-btn--board { grid-column: 1 / -1; min-height: 52px; flex-direction: row; gap: 10px; }
 
 /* 日曜の かいもので 手に 入れた アイテム */
 .wk-item__icon {

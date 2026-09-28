@@ -17,14 +17,13 @@
   /* タイルの 色 */
   --t-grass: #a9d27f;
   --t-grass-dot: #86b85a;
-  --t-house: #fbe3b8;
-  --t-roof: #c0502e;
+  --t-house: #f4a774;
+  --t-roof: #a8431f;
   --t-road: #efe4cf;
   --t-road-edge: #b39f7c;
   --t-wood: #c99a62;
   --t-wood-edge: #8a5a2b;
 
-  --cell: calc(64px * var(--zoom, 1));
 }
 
 * { box-sizing: border-box; }
@@ -135,12 +134,12 @@ button:focus-visible, a:focus-visible { outline: 4px solid #ffb300; outline-offs
 .nn-seat.is-off { border-color: #d8cfc3; background: #f6f1ea; color: #9a8f84; }
 .nn-seat__face { width: 52px; height: 52px; flex: none; }
 .nn-seat.is-off .nn-seat__face { opacity: .45; }
-.nn-seat__name { flex: 1; font-size: 18px; }
-.nn-seat__modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.nn-seat__name { flex: 1; min-width: 0; font-size: 17px; white-space: nowrap; }
+.nn-seat__modes { display: flex; gap: 5px; flex-wrap: wrap; }
 .nn-chip {
   min-height: 44px;
-  min-width: 56px;
-  padding: 4px 12px;
+  min-width: 50px;
+  padding: 4px 10px;
   border: 2px solid var(--c-line);
   border-radius: 999px;
   background: #fff;
@@ -202,7 +201,8 @@ button:focus-visible, a:focus-visible { outline: 4px solid #ffb300; outline-offs
 .nn-pl.is-current { border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 30%, transparent); background: color-mix(in srgb, var(--pc) 10%, #fff); }
 .nn-pl__face { width: 46px; height: 46px; flex: none; }
 .nn-pl__body { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 4px; min-width: 0; flex: 1; }
-.nn-pl__name { font-size: 13px; color: var(--pc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nn-pl__name { font-size: 14px; color: var(--pc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nn-pl__name small { margin-left: 3px; padding: 0 4px; font-size: 10px; border-radius: 4px; background: var(--pc); color: #fff; vertical-align: 1px; }
 .nn-pl__pts { font-size: 20px; font-variant-numeric: tabular-nums; grid-row: span 2; }
 .nn-pl__pts small { font-size: 12px; }
 .nn-pl__left { font-size: 12px; color: var(--c-sub); white-space: nowrap; }
@@ -274,7 +274,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #ffb300; outline-offs
   padding: 10px;
   -webkit-overflow-scrolling: touch;
 }
-.nn-board { display: inline-grid; gap: 2px; }
+.nn-board { --cell: calc(64px * var(--zoom, 1)); display: inline-grid; gap: 2px; }
 .nn-cell {
   width: var(--cell);
   height: var(--cell);
