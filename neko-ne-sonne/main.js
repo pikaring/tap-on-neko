@@ -226,7 +226,7 @@
       var d = DIRS[i];
       if (!(m & d)) continue;
       var a = nb(t, d);
-      if (a < 0 || !s.cells[a] || !(s.cells[a].m & opp(d))) continue;
+      if (a < 0 || !s.cells[a]) continue;
       var A = regionAt(s, a);
       if (A === B || !A.closed || A.owner !== p) continue;
       if (A.w[p] > B.w[B.owner]) return true;
@@ -240,12 +240,17 @@
     var p = s.current, P = s.players[p];
     var tile = P.hand[hi], m = rot(tile.m, r);
     var victim = regionAt(s, t).owner;
+    /* 自分の なわばり がわの 境目は、へい（タイルの 壁）も 壁コマも こわして 道で つなぐ */
     DIRS.forEach(function (d) {
       if (!(m & d)) return;
       var a = nb(t, d);
-      if (a < 0 || !s.cells[a] || !(s.cells[a].m & opp(d))) return;
+      if (a < 0 || !s.cells[a]) return;
       var A = regionAt(s, a);
-      if (A.closed && A.owner === p) { var e = edgeId(t, d); if (e >= 0) s.walls[e] = 0; }
+      if (A.closed && A.owner === p) {
+        s.cells[a].m |= opp(d);
+        var e = edgeId(t, d);
+        if (e >= 0) s.walls[e] = 0;
+      }
     });
     s.players[victim].omiyage++;
     P.hand.splice(hi, 1);
@@ -653,7 +658,7 @@
       '<li>施設が 2つ 以上 ある なわばりは 🛡️<b>安住の地</b>（二眼）。浸食されない。</li>' +
       '</ul><h3>⚔️ 浸食</h3><ul>' +
       '<li>じぶんの なわばりの ねこの かずが、となりの 相手の なわばりの 相手の ねこの かずより <b>多い</b> とき、手札で 境目の マスを <b>上書き</b>できる（タイルを おく かわり）。</li>' +
-      '<li>上書きする タイルは じぶんの なわばり がわに 道が むいて いること。境目の 壁コマは こわれる。</li>' +
+      '<li>上書きする タイルは じぶんの なわばり がわに 道が むいて いること（ほかの 辺は あわなくて よい）。境目の へいと 壁コマは こわれて、じぶんの なわばりと 道で つながる。</li>' +
       '<li>上書きした マスには <b>かならず じぶんの ねこ（か ボス猫）を おく</b>。ねこが いないと 浸食できない。</li>' +
       '<li>ねこが いる マス・ボス猫の まわり・一度 上書きされた マス（🐾ふみかため）は 上書きできない。</li>' +
       '<li>はじき出された タイルは やられた 人の 🎁<b>おみやげ</b>（さいごに 1点）。</li>' +
