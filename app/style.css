@@ -277,7 +277,7 @@ body {
   left: 50%;
   bottom: 8%;
   transform: translateX(-50%);
-  width: min(60vw, 320px);
+  width: min(62vw, 332px);   /* 猫の 絵の 縮尺 0.9029 に あわせた はば（前は 0.9373 で 60vw / 320px） */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -778,7 +778,7 @@ body {
 @media (max-height: 620px) {
   .room { min-height: 130px; }
 
-  .cat-stage { width: min(34vw, 180px); }
+  .cat-stage { width: min(35vw, 187px); }
 
   .status__value { font-size: clamp(30px, 7vw, 44px); }
 
@@ -823,7 +823,7 @@ body {
   .room { min-height: 96px; }
 
   /* よこむきでは 画面の たかさが きめてなので vh で 大きさを きめる */
-  .cat-stage { width: min(22vh, 150px); }
+  .cat-stage { width: min(22.8vh, 156px); }
 
   .room-button {
     min-height: 48px;
