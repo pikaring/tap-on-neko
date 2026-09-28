@@ -1310,7 +1310,9 @@ function hangOut(k) {
   var f = WEEK.friends[k];
   var count = run.friendCount[k];
   setBg(k === 'nao' ? 'school' : (k === 'maki' ? 'road' : 'shotengai'));
-  say([{ who: 'friend', text: f.hang[Math.min(count, f.hang.length - 1)] }], function () {
+  /* 日曜（やすみの 日）は hangHoliday が あれば そちら（「ぶかつの あと」などを 言わない） */
+  var hangText = (WEEK.days[run.day].holiday && f.hangHoliday) ? f.hangHoliday : f.hang[Math.min(count, f.hang.length - 1)];
+  say([{ who: 'friend', text: hangText }], function () {
     playGame(f.game, function (res) {
       run.friendCount[k]++;
       showSlotResult(res, { category: 'tomo', time: '' }, function () {
@@ -1323,7 +1325,8 @@ function hangOut(k) {
 function doBaito() {
   setBg('shotengai');
   var lines = (run.owner === 'chika' ? WEEK.baito.chikaLines : WEEK.baito.lines).slice();
-  lines.push({ who: 'me', text: '@baito' });
+  var ownerLines = WEEK.owners[run.owner].lines;
+  lines.push({ who: 'me', text: (WEEK.days[run.day].holiday && ownerLines.baitoHoliday) ? '@baitoHoliday' : '@baito' });
   say(lines, function () {
     playGame('baito', function (res) {
       showSlotResult(res, { category: 'baito', time: '' }, function () {
