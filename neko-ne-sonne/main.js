@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29f';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29g';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -252,13 +252,26 @@
   function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t.c).indexOf(c) >= 0; }); }
   function takoAt(s, c) { for (var i = 0; i < s.takos.length; i++) if (s.takos[i].c === c) return s.takos[i]; return null; }
   function canTako(s, c) { return !!s.cells[c] && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
+  /** 完成した 場所の ねこ（タコでも 追い出せない）：完成した なわばりの 境界の 猫道に いる ねこと、完成した 魚屋の ねこ */
+  function settledCat(s, c) {
+    var t = s.cells[c];
+    if (!t || t.cat === null) return false;
+    if (t.shop && s.shopDone[c] !== undefined) return true;
+    var x = c % SIZE, y = (c / SIZE) | 0;
+    var corners = { NW: [x, y], NE: [x + 1, y], SW: [x, y + 1], SE: [x + 1, y + 1] };
+    return Object.keys(corners).some(function (q) {
+      var v = corners[q][1] * V + corners[q][0];
+      return (t.m & QUAD_ARMS[q]) && s.vo[v] !== UNSCORED;
+    });
+  }
+
   function putTako(s, c) {
     s.takos.push({ c: c, p: s.current });
     s.players[s.current].takoLeft--;
     var removed = 0;
     takoZone(c).forEach(function (x) {
       var t = s.cells[x];
-      if (!t || t.cat === null) return;
+      if (!t || t.cat === null || settledCat(s, x)) return;
       /* 持ち主の 手もとへ もどる（ねこは 無限なので 数は かわらない。だれの 点にも ならない） */
       t.cat = null;
       removed++;
@@ -385,7 +398,7 @@
     if (P.takoLeft > 0) {
       for (var c = 0; c < N; c++) {
         if (!canTako(s, c)) continue;
-        var foes = takoZone(c).filter(function (x) { return s.cells[x] && s.cells[x].cat !== null && s.cells[x].cat !== p; }).length;
+        var foes = takoZone(c).filter(function (x) { return s.cells[x] && s.cells[x].cat !== null && s.cells[x].cat !== p && !settledCat(s, x); }).length;
         if (foes < 2) continue;
         var s3 = clone(s);
         putTako(s3, c);
@@ -584,7 +597,7 @@
     }
     if (ui.mode === 'tako') {
       return '<div class="nn-panel nn-panel--act">' +
-        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり、その 5マスには もう ねこを おけない。タコは ねこ 1匹ぶんの 票に なる</p>' +
+        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり（完成した なわばり・魚屋の ねこは のこる）、その 5マスには もう ねこを おけない。タコは ねこ 1匹ぶんの 票</p>' +
         '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
     }
     var can = anyPlace(game, P), hint = '';
@@ -690,6 +703,7 @@
       '<li>完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
       '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
+      '<li>ただし <b>完成した なわばりの 境界の ねこと、完成した 魚屋の ねこは 追い出せない</b>。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
       '<li>タコは おいた 人の ねこ 1匹と おなじに 数え、ふれて いる なわばりの 票に なる（とられない）。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
@@ -737,7 +751,7 @@
 
   function doTako(c) {
     var n = putTako(game, c);
-    say('🐙 ' + pname(game.current) + 'が タコを おいた！ ねこ ' + n + '匹が 手もとへ にげかえった', 'tako');
+    say('🐙 ' + pname(game.current) + 'が タコを おいた！ ' + (n ? 'ねこ ' + n + '匹が 手もとへ にげかえった' : 'にげた ねこは いなかった'), 'tako');
     afterAction(true);
   }
 
