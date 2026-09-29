@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29r';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29s';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -276,9 +276,10 @@
   }
 
   /* ---- タコ：その マスと 上下左右の ねこを 持ち主の 手もとへ かえし（だれの 点にも ならない）、
-     その 5マスには 以後 ねこを おけない。タコ 自身は おいた 人の ねこ 1匹と して なわばりを 数える ---- */
+     その 5マスには 以後 相手の ねこは のらない。タコ 自身は おいた 人の ねこ 1匹と して なわばりを 数える ---- */
   function takoZone(c) { return [c].concat(DIRS.map(function (d) { return nb(c, d); }).filter(function (x) { return x >= 0; })); }
-  function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t.c).indexOf(c) >= 0; }); }
+  /** タコの 5マスには、あとから 置かれた タイルにも 相手の ねこは のらない（タコを おいた 人の ねこは のる） */
+  function noCatZone(s, c, p) { return s.takos.some(function (t) { return t.p !== p && takoZone(t.c).indexOf(c) >= 0; }); }
   function takoAt(s, c) { for (var i = 0; i < s.takos.length; i++) if (s.takos[i].c === c) return s.takos[i]; return null; }
   /** タコは 自分の ねこが のって いる タイルに だけ おける（その ねこと 交換） */
   function canTako(s, c) { var t = s.cells[c]; return !!t && t.cat === s.current && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
@@ -345,7 +346,7 @@
     var t = s.players[s.current].hand.splice(hi, 1)[0];
     /* 猫道（か 魚屋）の ある タイルは おいた 人の 色（ねこが のる） */
     /* 平地（道なし）にも ねこが のる：ひるね猫。なわばりの 票には ならない。相手の なわばりに のまれたら とられ、さいごまで 外なら 1匹 3点 */
-    s.cells[c] = { m: rot(t.m, r), uid: t.uid, shop: !!t.shop, cat: !noCatZone(s, c) ? s.current : null };
+    s.cells[c] = { m: rot(t.m, r), uid: t.uid, shop: !!t.shop, cat: !noCatZone(s, c, s.current) ? s.current : null };
     s.last = c;
     s._f = null;
   }
@@ -791,7 +792,7 @@
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
       '<li>「🐙 タコ」を おして、次の どちらかで 出す：<br>① <b>手札の タイルを おく とき、その 上に タコを のせて 出す</b>（ねこの かわりに タコ。タイルを おく 手番の まま）<br>② タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>する。</li>' +
       '<li>上下左右の <b>猫道に いる 相手の ねこ だけ</b>が 持ち主の 手もとへ 逃げる（だれの 点にも ならない）。自分の ねこ・<b>魚屋の ねこ</b>・完成した なわばりの ねこは 逃げない。</li>' +
-      '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
+      '<li>その 5マスには、あとから おかれた タイルにも <b>相手の ねこは のらない</b>（自分の ねこは のる）。</li>' +
       '<li>タコは おいた 人の <b>ねこ 2匹ぶん</b>の 票に なる（とられない）。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 上と 下の 辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
