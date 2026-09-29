@@ -1,7 +1,8 @@
 // ネコネソンヌ：絵の 生成に 添付する 見本画像を 作る
 //   node docs/make-prompts.js [tiles]   （neko-ne-sonne/ で。1つ上の フォルダで python3 -m http.server 8765 を 動かして おく。tiles を つけると 盤の 見本は 作りなおさない）
-//   できる もの：docs/guides/guide-town.png（9×9 の 街の 区画わり。色＝場所の 種類。全体の 見取り図で、Gemini には 添付しない）
-//               docs/guides/guide-lane.png（3×3 の 見本。物どうしの すき間（幅 8%）が まん中を 十字に とおる）
+//   できる もの：docs/guides/guide-cross・guide-t・guide-straight・guide-corner・guide-dead・guide-flat .png
+//                 （タイルの 形ごとの 見本。灰色＝物、白い すき間＝猫道。1まい 3×3 で おなじ 形）
+//               docs/guides/guide-town.png（9×9 の 街の 区画わりの 見取り図。Gemini には 添付しない）
 //               docs/guides/board-sample.png（いまの 盤。上に 何が 重なるかの 見本）
 const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || '/opt/node22/lib/node_modules/playwright');
@@ -40,12 +41,42 @@ function svg(n, s, tintOf) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${n * s}" height="${n * s}">${body}</svg>`;
 }
 
+
+/* タイルの 形ごとの 見本。物（灰色）どうしの すき間が 猫道の 形に なる。すき間 約10%・ふちの 余白 約3%。
+   T字＝⊥（すき間が 上・左・右）、角＝┐（すき間が 左・下）、行き止まり＝下から まん中まで の 切れこみ */
+const M = 16, G = 52, H = 256, LO = H - G / 2, HI = H + G / 2, R = 496;
+const GUIDES = {
+  'guide-cross': [[M, M, LO, LO], [HI, M, R, LO], [M, HI, LO, R], [HI, HI, R, R]],
+  'guide-t': [[M, M, LO, LO], [HI, M, R, LO], [M, HI, R, R]],
+  'guide-straight': [[M, M, LO, R], [HI, M, R, R]],
+  'guide-corner': [[M, M, R, LO], [HI, M, R, R], [M, HI, LO, R]],
+  'guide-dead': [[M, M, R, R, 'slit']],
+  'guide-flat': [[M + 24, M + 24, R - 24, R - 24]],
+};
+function guideTile(x, y, boxes) {
+  let g = `<g transform="translate(${x},${y})"><rect width="512" height="512" fill="#fff"/>`;
+  boxes.forEach(([x0, y0, x1, y1, kind]) => {
+    if (kind === 'slit') {   /* 1つの 大きな 物に 下の 辺から まん中まで 切れこみ */
+      g += `<path d="M${x0} ${y0} H${x1} V${y1} H${HI} V${H} H${LO} V${y1} H${x0} Z" fill="#c0c0c0"/>`;
+    } else g += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="24" fill="#c0c0c0"/>`;
+  });
+  return g + `<rect width="512" height="512" fill="none" stroke="#888" stroke-width="3"/></g>`;
+}
+function guideSheet(boxes) {
+  let body = '';
+  for (let i = 0; i < 9; i++) body += guideTile((i % 3) * 512, Math.floor(i / 3) * 512, boxes);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1536">${body}</svg>`;
+}
+
 (async () => {
   const b = await chromium.launch();
   const pg = await b.newPage({ viewport: { width: 1620, height: 1620 } });
-  for (const [name, n, sz, tintOf] of [['guide-town', 9, 180, (i) => TINT[TOWN[Math.floor(i / 9)][i % 9]]], ['guide-lane', 3, 512, null]]) {
-    await pg.setContent(`<html><body style="margin:0">${svg(n, sz, tintOf)}</body></html>`);
-    await pg.screenshot({ path: path.join(OUT, name + '.png'), clip: { x: 0, y: 0, width: n * sz, height: n * sz } });
+  await pg.setViewportSize({ width: 1620, height: 1620 });
+  await pg.setContent(`<html><body style="margin:0">${svg(9, 180, (i) => TINT[TOWN[Math.floor(i / 9)][i % 9]])}</body></html>`);
+  await pg.screenshot({ path: path.join(OUT, 'guide-town.png'), clip: { x: 0, y: 0, width: 1620, height: 1620 } });
+  for (const [name, boxes] of Object.entries(GUIDES)) {
+    await pg.setContent(`<html><body style="margin:0">${guideSheet(boxes)}</body></html>`);
+    await pg.screenshot({ path: path.join(OUT, name + '.png'), clip: { x: 0, y: 0, width: 1536, height: 1536 } });
   }
   if (process.argv[2] !== 'tiles') {
     /* いまの 盤（CPU どうしで おわった 盤面） */

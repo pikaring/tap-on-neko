@@ -16,8 +16,8 @@
 | `style.css` | 見た目（猫街ろまんと 同じ 配色） |
 | `images/cat-*.png` | 4柄の ねこ（3×3 スプライト。tap-on-neko から コピー） |
 | `images/town-*.webp`・`shop-*.webp`・`tunnel-*.webp` | タイルの 絵（街区 18・魚屋 6・トンネル 3）。Gemini で 作った `docs/art/` の 3まいを `node docs/cut-art.js` で 切りわけた もの |
-| `docs/tile-prompts.md` | タイルの 絵の Gemini 用 生成プロンプト（5版目：9×9 の 街を 3×3 ずつ 9まいに 分けて 作り、切りわけて タイルに する。猫道は 絵に 描かず 仕上げに 重ねる。漫印堂で 印刷する ときの メモ つき） |
-| `docs/guides/` | 見本（`guide-lane.png` 3×3 の すき間の 見本・`guide-town.png` 9×9 の 区画わりの 見取り図・`board-sample.png` いまの 盤・`style-title.jpg` 画風）。`docs/make-prompts.js` で 作りなおせる |
+| `docs/tile-prompts.md` | タイルの 絵の Gemini 用 生成プロンプト（6版目：物と 物の すき間が 猫道の 形に なる 1マスの 絵。3×3 の シート 10まい。猫道の 帯は 仕上げに 重ねる。漫印堂で 印刷する ときの メモ つき） |
+| `docs/guides/` | 見本（`guide-cross・t・straight・corner・dead・flat.png` タイルの 形ごとの 物の 並べ方・`guide-town.png` 9×9 の 区画わりの 見取り図・`board-sample.png` いまの 盤・`style-title.jpg` 画風）。`docs/make-prompts.js` で 作りなおせる |
 
 ## ルール（2026-09-29 版）
 
