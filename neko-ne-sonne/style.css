@@ -194,13 +194,7 @@ button.nn-cell { cursor: pointer; }
   .nn-hand__tile { width: 64px; height: 64px; }
 }
 
-/* なわばりの 目じるしの ねこ（格子点の 上に 置く） */
-.nn-marker {
-  position: absolute; z-index: 2; transform: translate(-50%, -50%);
-  width: calc(100% / var(--n, 9) * .62); aspect-ratio: 1 / 1; pointer-events: none;
-  border-radius: 50%; background: color-mix(in srgb, var(--pc) 35%, #fff); box-shadow: 0 0 0 3px var(--pc);
-}
-.nn-marker__face { width: 100%; height: 100%; }
+
 
 /* トンネル（四辺の まん中）：盤の 縁に あいた 穴。内がわに 口を むける。ここを ふくむ 面は 0点 */
 .nn-tunnel {
