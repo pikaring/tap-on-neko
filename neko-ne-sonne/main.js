@@ -5,7 +5,7 @@
    ・猫道（か 魚屋）の ある タイルを おくと、かならず おいた 人の ねこが のる（ねこは 無限）
    ・猫道と 盤の 端が 境界線。上下の 辺の まん中の「トンネル」を ふくむ 面は 0点
    ・面が 完成（中に 空きマスが ない）したら すぐ 採点：面に 面した ねこ（と タコ）の
-     多数派が ¼マス＝1点。境界の 相手の ねこは とって 1匹 1点
+     多数派が、面が かかった タイル 1まいにつき 1点（¼だけ かかって いても 1点）。境界の 相手の ねこは とって 1匹 1点
    ・魚屋は まわりが うまったら 持ち主に まわり 3×3 の 盤内マス数
    ・タコ（1人 1回）：自分の ねこと 交換。上下左右の 猫道に いる 相手の ねこを 逃がす。ねこ 2匹ぶんの 票
 
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29j';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29k';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -142,7 +142,7 @@
     var of = new Int16Array(V * V).fill(-1), faces = [];
     for (var v0 = 0; v0 < V * V; v0++) {
       if (of[v0] >= 0) continue;
-      var f = { id: faces.length, verts: [], area: 0, closed: true, exit: false, border: {}, w: [0, 0, 0, 0], tops: [], owner: null };
+      var f = { id: faces.length, verts: [], area: 0, tiles: {}, pts: 0, closed: true, exit: false, border: {}, w: [0, 0, 0, 0], tops: [], owner: null };
       var stack = [v0];
       of[v0] = f.id;
       while (stack.length) {
@@ -154,6 +154,7 @@
           if (t === undefined) return;
           if (t === null) { f.closed = false; return; }
           f.area++;                                                /* ¼マス 1つ */
+          f.tiles[y * SIZE + x] = true;                             /* 面が かかった タイル */
           if (t.m & QUAD_ARMS[a[2]]) f.border[y * SIZE + x] = true; /* この 面に 面した 猫道 */
         });
         var nbrs = [];
@@ -172,6 +173,7 @@
       var max = Math.max.apply(null, f.w);
       for (var p = 0; p < s.n; p++) if (max > 0 && f.w[p] === max) f.tops.push(p);
       f.owner = f.tops.length === 1 ? f.tops[0] : null;
+      f.pts = Object.keys(f.tiles).length;                          /* 点：面が かかった タイルの まい数 */
       faces.push(f);
     }
     return { of: of, faces: faces };
@@ -188,7 +190,7 @@
       var k = f.tops.length;
       var mark = k === 0 ? NOBODY : k > 1 ? TIE : f.tops[0];
       f.verts.forEach(function (v) { s.vo[v] = mark; });
-      var pts = k ? Math.floor(f.area / k) : 0;              /* 同率首位は 人数で わって 切りすて */
+      var pts = k ? Math.floor(f.pts / k) : 0;               /* 同率首位は 人数で わって 切りすて */
       f.tops.forEach(function (p) { s.players[p].score += pts; });
       /* 持ち主が きまったら、境界の 相手の ねこを とる（盤から のぞき 1匹 1点）。自分の ねこは のこる */
       var cap = 0;
@@ -383,7 +385,7 @@
     faces(s).faces.forEach(function (f) {
       if (f.closed || f.exit || !f.tops.length) return;
       var share = f.tops.indexOf(p) >= 0 ? 1 / f.tops.length : -1 / Math.max(1, s.n - 1);
-      v += share * Math.min(f.area, 40) * 0.4;
+      v += share * Math.min(f.pts, 12) * 1.2;
     });
     /* 未完成の 魚屋：うまった ぶんを 見込む */
     s.cells.forEach(function (t, c) {
@@ -703,7 +705,7 @@
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
       (game.endReason === 'noterr' ? '<p class="nn-modal__note">もう あたらしい なわばりが できないので おしまい</p>' : '') +
       '<div class="nn-final">' + rows + '</div>' +
-      '<p class="nn-modal__note">なわばりの ¼マス＝1点 ＋ 魚屋 ＋ とった ねこ 1匹＝1点</p>' +
+      '<p class="nn-modal__note">なわばりは かかった タイル 1まい＝1点 ＋ 魚屋 ＋ とった ねこ 1匹＝1点</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
       '<button type="button" class="nn-btn nn-btn--sub" data-action="view">盤面を みる</button></div></div>';
   }
@@ -732,7 +734,7 @@
       '<li>タコは おいた 人の <b>ねこ 2匹ぶん</b>の 票に なる（とられない）。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 上と 下の 辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
-      '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
+      '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、<b>面が かかった タイル 1まいにつき 1点</b>（¼だけ かかって いても 1点）を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
       '<li>同数なら 点を 人数で わって 切りすて。</li>' +
       '<li>持ち主は 境界の <b>相手の ねこを とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。自分の ねこは のこる。</li>' +
       '</ul><h3>おわり</h3><ul>' +
