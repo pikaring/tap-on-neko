@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29g';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29h';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -251,7 +251,8 @@
   function takoZone(c) { return [c].concat(DIRS.map(function (d) { return nb(c, d); }).filter(function (x) { return x >= 0; })); }
   function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t.c).indexOf(c) >= 0; }); }
   function takoAt(s, c) { for (var i = 0; i < s.takos.length; i++) if (s.takos[i].c === c) return s.takos[i]; return null; }
-  function canTako(s, c) { return !!s.cells[c] && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
+  /** タコは 自分の ねこが のって いる タイルに だけ おける（その ねこと 交換） */
+  function canTako(s, c) { var t = s.cells[c]; return !!t && t.cat === s.current && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
   /** 完成した 場所の ねこ（タコでも 追い出せない）：完成した なわばりの 境界の 猫道に いる ねこと、完成した 魚屋の ねこ */
   function settledCat(s, c) {
     var t = s.cells[c];
@@ -268,8 +269,10 @@
   function putTako(s, c) {
     s.takos.push({ c: c, p: s.current });
     s.players[s.current].takoLeft--;
+    s.cells[c].cat = null;                       /* 自分の ねこと 交換（この ねこは 手もとへ） */
     var removed = 0;
     takoZone(c).forEach(function (x) {
+      if (x === c) return;
       var t = s.cells[x];
       if (!t || t.cat === null || settledCat(s, x)) return;
       /* 持ち主の 手もとへ もどる（ねこは 無限なので 数は かわらない。だれの 点にも ならない） */
@@ -583,7 +586,7 @@
   function renderStatus() {
     var P = game.players[game.current], t;
     if (isAi()) t = pname(game.current) + 'の ばん … かんがえちゅう';
-    else if (ui.mode === 'tako') t = '🐙 タコを おく タイルを えらんでね';
+    else if (ui.mode === 'tako') t = '🐙 タコと 交換する 自分の ねこを えらんでね';
     else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで おく';
     return '<p class="nn-status" style="--pc:' + CATS[P.cat].color + '">' + esc(t) + '</p>';
   }
@@ -597,7 +600,7 @@
     }
     if (ui.mode === 'tako') {
       return '<div class="nn-panel nn-panel--act">' +
-        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり（完成した なわばり・魚屋の ねこは のこる）、その 5マスには もう ねこを おけない。タコは ねこ 1匹ぶんの 票</p>' +
+        '<p class="nn-panel__hint">むらさきの マス（自分の ねこ）を タコと 交換。上下左右の ねこは 手もとへ もどり（完成した なわばり・魚屋の ねこは のこる）、その 5マスには もう ねこが のらない。タコは ねこ 1匹ぶんの 票</p>' +
         '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
     }
     var can = anyPlace(game, P), hint = '';
@@ -702,7 +705,7 @@
       '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。魚屋の ねこ（か タコ）の 持ち主が、まわり 3×3 の 盤内の マスの かず（まん中 9点・辺 6点・角 4点）を もらう。魚屋の ねこは そのまま のこる。</li>' +
       '<li>完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
-      '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
+      '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
       '<li>ただし <b>完成した なわばりの 境界の ねこと、完成した 魚屋の ねこは 追い出せない</b>。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
       '<li>タコは おいた 人の ねこ 1匹と おなじに 数え、ふれて いる なわばりの 票に なる（とられない）。</li>' +
@@ -808,7 +811,7 @@
   /* テスト用 */
   window.NNS = {
     newGame: newGame, computeFaces: computeFaces, canPlace: canPlace, placeTile: placeTile, settle: settle,
-    totals: totals, rot: rot, canStillScore: canStillScore, putTako: putTako, getGame: function () { return game; }
+    totals: totals, rot: rot, canStillScore: canStillScore, canTako: canTako, putTako: putTako, getGame: function () { return game; }
   };
 
   render();
