@@ -15,6 +15,7 @@
 (function () {
   'use strict';
 
+  var VERSION = '2026-09-29d';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -531,7 +532,8 @@
         ? 'おいた 猫道は かならず 自分の 色。かこんだら 境界の 相手の ねこを とる'
         : 'ねこは ' + R.cats + '匹。完成したら 手もとへ もどり、さいごに 手もとの ねこも 点') +
       '<br>' + active + '人：盤 ' + R.size + '×' + R.size + (R.shared ? '・場の タイル 4まいから えらぶ' : '・手札 3まいまで') + '</p>' +
-      '<button type="button" class="nn-btn nn-btn--go" data-action="start"' + (active < 2 ? ' disabled' : '') + '>あそぶ</button></section></div>';
+      '<button type="button" class="nn-btn nn-btn--go" data-action="start"' + (active < 2 ? ' disabled' : '') + '>あそぶ</button></section>' +
+      '<p class="nn-version">版 ' + VERSION + '</p></div>';
   }
 
   function renderScore() {
@@ -667,7 +669,7 @@
 
   function renderRules() {
     return '<div class="nn-overlay" data-action="close-rules"><div class="nn-modal nn-rules" data-action="noop">' +
-      '<div class="nn-modal__head"><h2 class="nn-modal__title">あそびかた</h2><button type="button" class="nn-modal__close" data-action="close-rules" aria-label="とじる">✕</button></div>' +
+      '<div class="nn-modal__head"><h2 class="nn-modal__title">あそびかた <small class="nn-version">版 ' + VERSION + '</small></h2><button type="button" class="nn-modal__close" data-action="close-rules" aria-label="とじる">✕</button></div>' +
       '<h3>2つの モード</h3><ul>' +
       '<li><b>囲碁モード（猫は 無限）</b>：猫道の ある タイルを おくと、かならず 自分の ねこが のり、猫道が 自分の 色に なる（タイルが 囲碁の 石）。なわばりが 完成したら、境界に いる <b>相手の ねこを とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。</li>' +
       '<li><b>猫街モード（猫に 限り）</b>：ねこを おくかは えらぶ。下の「じゅんび」の かずだけ。完成したら 境界の ねこは 手もとへ もどり、さいごに 手もとの ねこ 1匹＝1点。</li>' +

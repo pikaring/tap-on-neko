@@ -311,3 +311,4 @@ button.nn-cell { cursor: pointer; }
   .nn-play .nn-hand__tile { width: 72px; height: 72px; }
   .nn-play .nn-log { display: block; }
 }
+.nn-version { margin: 0; text-align: center; font-size: 12px; font-weight: 500; color: var(--c-sub); }
