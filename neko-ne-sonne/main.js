@@ -41,6 +41,7 @@
     { m: 1, n: 12 },    /* 行き止まり */
     { m: 0, n: 8 }      /* 道なし */
   ];
+  var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
   /* 格子点の 採点ずみ しるし */
   var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
@@ -82,11 +83,12 @@
     var s = {
       n: n, size: R.size, handMax: R.hand, shared: R.shared, mode: mode,
       players: seats.map(function (st, i) {
-        return { index: i, cat: st.cat, human: st.human, catsLeft: mode === 'go' ? 0 : R.cats, score: 0, captured: 0, hand: shared || [] };
+        return { index: i, cat: st.cat, human: st.human, catsLeft: mode === 'go' ? 0 : R.cats, score: 0, captured: 0, takoLeft: TAKO_PER_PLAYER, hand: shared || [] };
       }),
       cells: new Array(N).fill(null),
       vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
       markers: [],                               /* なわばりの 目じるしの ねこ {v, p} */
+      takos: [],                                 /* タコを おいた マス */
       exits: exitVerts(),
       deck: buildDeck(),
       current: 0, turn: 0, passes: 0, phase: 'playing', last: -1, log: [], _f: null
@@ -102,10 +104,10 @@
     return {
       n: s.n, size: s.size, handMax: s.handMax, shared: s.shared, mode: s.mode,
       players: s.players.map(function (p) {
-        return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, captured: p.captured, hand: sharedHand || p.hand.slice() };
+        return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, captured: p.captured, takoLeft: p.takoLeft, hand: sharedHand || p.hand.slice() };
       }),
       cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat } : null; }),
-      vo: new Int8Array(s.vo), markers: s.markers.slice(), exits: s.exits,
+      vo: new Int8Array(s.vo), markers: s.markers.slice(), takos: s.takos.slice(), exits: s.exits,
       deck: s.deck, current: s.current, turn: s.turn, passes: s.passes, phase: s.phase, last: s.last, log: null, _f: null
     };
   }
@@ -225,8 +227,9 @@
   /** 合計点：なわばりの 点（囲碁モードは とった ねこを ふくむ）＋ 猫街モードは 手もとの ねこ */
   function totals(s) { return s.players.map(function (p) { return p.score + (s.mode === 'go' ? 0 : p.catsLeft); }); }
 
-  /** おける？：となりに タイルが ある。となりから むかって くる 猫道は ぜんぶ うけとめる。
-      こちらから 出す 猫道は 行き止まりでも よい */
+  /** おける？：となりに タイルが ある。となりの タイルとの 辺は ぴったり あわせる
+      （道が 辺まで 出て いたら かならず 道どうしで つなぐ。行き止まりの 道を となりに ぶつけない）。
+      盤の 端へ 出る 猫道は よい（盤の 端は 境界線） */
   function canPlace(s, c, m) {
     if (s.cells[c]) return false;
     var adj = false;
@@ -234,19 +237,56 @@
       var d = DIRS[i], b = nb(c, d);
       if (b < 0 || !s.cells[b]) continue;
       adj = true;
-      if ((s.cells[b].m & opp(d)) && !(m & d)) return false;
+      if (!!(s.cells[b].m & opp(d)) !== !!(m & d)) return false;
     }
     return adj;
+  }
+
+  /* ---- タコ：その マスと 上下左右の ねこを 手もとへ かえし、その 5マスには 以後 ねこを おけない ---- */
+  function takoZone(c) { return [c].concat(DIRS.map(function (d) { return nb(c, d); }).filter(function (x) { return x >= 0; })); }
+  function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t).indexOf(c) >= 0; }); }
+  function canTako(s, c) { return !!s.cells[c] && s.takos.indexOf(c) < 0 && s.players[s.current].takoLeft > 0; }
+  function putTako(s, c) {
+    s.takos.push(c);
+    s.players[s.current].takoLeft--;
+    var removed = 0;
+    takoZone(c).forEach(function (x) {
+      var t = s.cells[x];
+      if (!t || t.cat === null) return;
+      if (s.mode !== 'go') s.players[t.cat].catsLeft++;   /* 猫街モード：持ち主の 手もとへ（囲碁モードは 無限なので 盤から のぞくだけ） */
+      t.cat = null;
+      removed++;
+    });
+    s._f = null;
+    return removed;
+  }
+
+  /** まだ あたらしい なわばりが できる 見こみが ある？
+      空きマスを ぜんぶ 十字（いちばん こまかく 区切る 形）で うめた と 考え、
+      空きマスの 角を ふくむ 面が どれも 出口に ふれるなら、もう なわばりは ふえない */
+  function canStillScore(s) {
+    var near = {}, any = false;
+    s.cells.forEach(function (c, i) {
+      if (c) return;
+      any = true;
+      var x = i % SIZE, y = (i / SIZE) | 0;
+      [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].forEach(function (p) { near[p[1] * V + p[0]] = true; });
+    });
+    if (!any) return false;
+    var sim = { n: s.n, exits: s.exits, cells: s.cells.map(function (c) { return c || { m: 15, uid: 0, cat: null }; }) };
+    return computeFaces(sim).faces.some(function (f) {
+      return !f.exit && f.area > 0 && f.verts.some(function (v) { return near[v]; });
+    });
   }
   function placeTile(s, hi, r, c) {
     var t = s.players[s.current].hand.splice(hi, 1)[0];
     /* 囲碁モード：猫道の ある タイルは おいた 人の 色（ねこが のる） */
-    s.cells[c] = { m: rot(t.m, r), uid: t.uid, cat: s.mode === 'go' && t.m ? s.current : null };
+    s.cells[c] = { m: rot(t.m, r), uid: t.uid, cat: s.mode === 'go' && t.m && !noCatZone(s, c) ? s.current : null };
     s.last = c;
     s._f = null;
   }
   /** ねこは いま おいた タイルの 猫道の 上だけ */
-  function canCat(s, c) { var t = s.cells[c]; return !!t && t.m !== 0 && t.cat === null && c === s.last && s.players[s.current].catsLeft > 0; }
+  function canCat(s, c) { var t = s.cells[c]; return !!t && t.m !== 0 && t.cat === null && c === s.last && s.players[s.current].catsLeft > 0 && !noCatZone(s, c); }
   function putCat(s, c) { s.cells[c].cat = s.current; s.players[s.current].catsLeft--; s._f = null; }
   
 
@@ -274,7 +314,8 @@
       s.swapped++;
     }
     var noTiles = !s.deck.length && s.players.every(function (q) { return !q.hand.length; });
-    if (noTiles || s.cells.every(Boolean)) finish(s);
+    if (noTiles || s.cells.every(Boolean)) { finish(s); return; }
+    if (!canStillScore(s)) { s.endReason = 'noterr'; finish(s); }
   }
   function endTurn(s, acted) {
     s.passes = acted ? 0 : s.passes + 1;
@@ -304,9 +345,9 @@
   function cpuChoose(s) {
     var p = s.current, P = s.players[p];
     var best = { v: -Infinity, act: null };
-    function consider(s2, act) {
+    function consider(s2, act, bias) {
       settle(s2);
-      var v = evaluate(s2, p) + Math.random() * 0.05;
+      var v = evaluate(s2, p) + (bias || 0) + Math.random() * 0.05;
       if (v > best.v) best = { v: v, act: act };
     }
     P.hand.forEach(function (tile, hi) {
@@ -324,6 +365,17 @@
         }
       }
     });
+    /* タコ：相手の ねこが 2匹 以上 のぞける ところだけ ためす（つかうと 1回 へるので 少し ひかえめに） */
+    if (P.takoLeft > 0) {
+      for (var c = 0; c < N; c++) {
+        if (!canTako(s, c)) continue;
+        var foes = takoZone(c).filter(function (x) { return s.cells[x] && s.cells[x].cat !== null && s.cells[x].cat !== p; }).length;
+        if (foes < 2) continue;
+        var s3 = clone(s);
+        putTako(s3, c);
+        consider(s3, { type: 'tako', c: c }, -3);
+      }
+    }
     return best.act || { type: 'pass' };
   }
 
@@ -427,10 +479,13 @@
   function render() {
     var root = document.getElementById('app');
     if (!game) { root.innerHTML = renderSetup() + (rulesOpen ? renderRules() : ''); return; }
-    root.innerHTML = '<div class="nn-stage">' + renderTop() + renderScore() +
-      (game.phase === 'playing' ? renderStatus() + renderPanel() : '') +
-      (game.phase === 'viewing' ? '<div class="nn-panel"><button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button></div>' : '') +
-      renderBoard() + renderLog() + '</div>' +
+    /* 盤は つねに 見える 位置に。したの 操作らんは 高さを 固定して、中身が かわっても 盤が ずれない */
+    root.innerHTML = '<div class="nn-play">' + renderTop() +
+      '<div class="nn-side">' + renderScore() +
+      '<div class="nn-ctrl">' + (game.phase === 'playing' ? renderStatus() + renderPanel()
+        : '<p class="nn-status" style="--pc:#2f5d3a">おしまい</p><div class="nn-panel"><button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button></div>') + '</div>' +
+      renderLog() + '</div>' +
+      renderBoard() + '</div>' +
       (game.phase === 'over' ? renderOver() : '') + (rulesOpen ? renderRules() : '');
     scheduleAi();
   }
@@ -478,13 +533,13 @@
 
   function renderScore() {
     var tot = game.phase === 'playing' ? totals(game) : game.final;
-    return '<div class="nn-score">' + game.players.map(function (p, i) {
+    return '<div class="nn-score" style="--np:' + game.n + '">' + game.players.map(function (p, i) {
       var cur = i === game.current && game.phase === 'playing';
       return '<div class="nn-pl' + (cur ? ' is-current' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         catFace(p.cat, 'nn-pl__face', cur ? [false, 1, 0] : null) +
         '<span class="nn-pl__body"><span class="nn-pl__name">' + CATS[p.cat].name + (p.human ? '' : '<small>CPU</small>') + '</span>' +
         '<span class="nn-pl__pts">' + tot[i] + '<small>点</small></span>' +
-        '<span class="nn-pl__left">' + (game.mode === 'go' ? '🏠' + (p.score - p.captured) + ' ＋ 🐾とった ' + p.captured : '🏠' + p.score + ' ＋ 🐾手もと' + p.catsLeft) + '</span></span></div>';
+        '<span class="nn-pl__left">' + (game.mode === 'go' ? '🏠' + (p.score - p.captured) + ' 🐾' + p.captured : '🏠' + p.score + ' 🐾' + p.catsLeft) + (p.takoLeft ? ' 🐙' : '') + '</span></span></div>';
     }).join('') + '</div>';
   }
 
@@ -492,7 +547,8 @@
     var P = game.players[game.current], t;
     if (isAi()) t = pname(game.current) + 'の ばん … かんがえちゅう';
     else if (ui.mode === 'follow') t = 'おいた 猫道に ねこを おく？（手もとの ねこは 1匹 1点）';
-    else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで 盤に おく' + (game.mode === 'go' ? '（猫道は じぶんの 色に なる）' : '');
+    else if (ui.mode === 'tako') t = '🐙 タコを おく タイルを えらんでね';
+    else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで おく';
     return '<p class="nn-status" style="--pc:' + CATS[P.cat].color + '">' + esc(t) + '</p>';
   }
 
@@ -502,6 +558,11 @@
     var label = game.shared ? '<span class="nn-deck">場（共通）</span>' : '';
     if (isAi()) {
       return '<div class="nn-panel nn-hand">' + label + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
+    }
+    if (ui.mode === 'tako') {
+      return '<div class="nn-panel nn-panel--act">' +
+        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり、その 5マスには もう ねこを おけない</p>' +
+        '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
     }
     if (ui.mode === 'follow') {
       return '<div class="nn-panel nn-panel--act">' +
@@ -525,6 +586,7 @@
       '<p class="nn-panel__hint">' + esc(hint) + '</p>' +
       '<div class="nn-panel__row">' +
       (ui.sel !== null && can ? '<button type="button" class="nn-btn nn-btn--small" data-action="rotate">↻ まわす</button>' : '') +
+      (P.takoLeft > 0 ? '<button type="button" class="nn-btn nn-btn--small nn-btn--tako" data-action="tako">🐙 タコ</button>' : '') +
       (!can ? '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="pass">パス</button>' : '') +
       '</div></div>';
   }
@@ -540,7 +602,11 @@
     if (game.phase === 'playing' && !isAi() && ui.mode === 'tile' && ui.sel !== null && P.hand[ui.sel]) {
       var m = rot(P.hand[ui.sel].m, ui.rot);
       for (var c = 0; c < N; c++) if (canPlace(game, c, m)) mark[c] = 'is-place';
+    } else if (game.phase === 'playing' && !isAi() && ui.mode === 'tako') {
+      for (var c2 = 0; c2 < N; c2++) if (canTako(game, c2)) mark[c2] = 'is-tako-target';
     }
+    var zone = {};
+    game.takos.forEach(function (tc) { takoZone(tc).forEach(function (x) { zone[x] = true; }); });
     function quadColor(vx, vy) {
       var o = game.vo[vy * V + vx];
       if (o >= 0) return CATS[game.players[o].cat].color;
@@ -549,8 +615,9 @@
     var cells = '';
     for (var i = 0; i < N; i++) {
       var t = game.cells[i], x = i % SIZE, y = (i / SIZE) | 0;
-      var cls = 'nn-cell' + (mark[i] ? ' ' + mark[i] : '') + (i === game.last ? ' is-last' : '') + (t ? '' : ' is-empty');
+      var cls = 'nn-cell' + (mark[i] ? ' ' + mark[i] : '') + (i === game.last ? ' is-last' : '') + (t ? '' : ' is-empty') + (zone[i] ? ' is-tako-zone' : '');
       var inner = t ? tileSVG(t, { quads: { NW: quadColor(x, y), NE: quadColor(x + 1, y), SW: quadColor(x, y + 1), SE: quadColor(x + 1, y + 1) } }) : '';
+      if (game.takos.indexOf(i) >= 0) inner += '<img class="nn-tako" src="images/tako.png" alt="タコ">';
       cells += mark[i] ? '<button type="button" class="' + cls + '" data-action="cell" data-c="' + i + '">' + inner + '</button>'
         : '<div class="' + cls + '">' + inner + '</div>';
     }
@@ -584,6 +651,7 @@
         '<span class="nn-final__pts">' + game.final[i] + '点</span></div>';
     }).join('');
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
+      (game.endReason === 'noterr' ? '<p class="nn-modal__note">もう あたらしい なわばりが できないので おしまい</p>' : '') +
       '<div class="nn-final">' + rows + '</div>' +
       '<p class="nn-modal__note">' + (game.mode === 'go' ? 'なわばりの ¼マス＝1点 ＋ とった ねこ 1匹＝1点' : 'なわばりの ¼マス＝1点 ＋ 手もとに のこった ねこ 1匹＝1点') + '</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
@@ -602,9 +670,12 @@
       '<li>まん中に 十字の タイルを おいて はじめる。</li>' +
       '</ul><h3>タイルを おく</h3><ul>' +
       '<li>タイルには 猫道が 0〜4本（中心から 辺の まん中へ）。</li>' +
-      '<li>すでに ある タイルの となりに おく。<b>となりから きて いる 猫道は ぜんぶ うけとめて つなげる</b>。こちらから 出す 猫道は 行き止まりでも よい。</li>' +
+      '<li>すでに ある タイルの となりに おく。<b>となりの タイルとの 辺は ぴったり あわせる</b>（道が 辺まで 出て いたら かならず 道どうしで つなぐ）。盤の 端へ 出る 猫道は よい。</li>' +
       '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おく（囲碁モードは 自動・猫街モードは えらぶ）。</li>' +
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
+      '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
+      '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 手もとへ もどる（囲碁モードは 盤から いなくなる）。</li>' +
+      '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中の <b>出口🚪に ふれた 面は 0点</b>。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
@@ -612,7 +683,7 @@
       '<li>囲碁モード：持ち主は 境界の 相手の ねこを とる（1匹 1点）。自分の ねこは のこる。</li>' +
       '<li>猫街モード：<b>境界の ねこは 全員 手もとへ もどる</b>。なわばりを とった 人は、その 中に 目じるしの ねこを 1匹 おく（もどらない）。</li>' +
       '</ul><h3>おわり</h3><ul>' +
-      '<li>盤が うまるか、山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
+      '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても 出口に つながる 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
       '<li>完成して いない 面は 0点。猫街モードは <b>手もとに のこった ねこ 1匹＝1点</b>。</li>' +
       '</ul></div></div>';
   }
@@ -644,6 +715,12 @@
     render();
   }
 
+  function doTako(c) {
+    var n = putTako(game, c);
+    say('🐙 ' + pname(game.current) + 'が タコを おいた！ ねこ ' + n + '匹が ' + (game.mode === 'go' ? 'にげた' : '手もとへ にげかえった'), 'tako');
+    afterAction(true);
+  }
+
   function clearAi() { if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; } }
   function scheduleAi() {
     if (!isAi() || aiTimer) return;
@@ -652,6 +729,7 @@
       if (!isAi()) return;
       var p = game.current, act = cpuChoose(game);
       if (act.type === 'pass') { say(pname(p) + '：パス', ''); afterAction(false); return; }
+      if (act.type === 'tako') { doTako(act.c); return; }
       placeTile(game, act.hi, act.r, act.c);
       if (act.cat) putCat(game, act.c);
       afterAction(true);
@@ -677,6 +755,9 @@
       if (ui.sel === i) ui.rot = (ui.rot + 1) % 4; else { ui.sel = i; ui.rot = 0; }
       ui.mode = 'tile'; render();
     } else if (a === 'rotate') { ui.rot = (ui.rot + 1) % 4; render(); }
+    else if (a === 'tako' && P.takoLeft > 0) { ui.mode = 'tako'; render(); }
+    else if (a === 'tako-cancel') { ui.mode = 'tile'; render(); }
+    else if (a === 'cell' && ui.mode === 'tako') { var tc = Number(el.dataset.c); if (canTako(game, tc)) doTako(tc); }
     else if (a === 'cell' && ui.mode === 'tile' && ui.sel !== null) {
       var c = Number(el.dataset.c), m = rot(P.hand[ui.sel].m, ui.rot);
       if (!canPlace(game, c, m)) return;
@@ -696,7 +777,7 @@
   /* テスト用 */
   window.NNS = {
     newGame: newGame, computeFaces: computeFaces, canPlace: canPlace, placeTile: placeTile, putCat: putCat, settle: settle,
-    totals: totals, rot: rot, getGame: function () { return game; }
+    totals: totals, rot: rot, canStillScore: canStillScore, putTako: putTako, getGame: function () { return game; }
   };
 
   render();

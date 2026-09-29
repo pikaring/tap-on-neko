@@ -208,3 +208,97 @@ button.nn-cell { cursor: pointer; }
   font-size: clamp(14px, 3.6vw, 22px); line-height: 1; pointer-events: none;
   padding: 2px; border-radius: 6px; background: #fff8ec; box-shadow: 0 0 0 2px var(--c-line);
 }
+
+/* =========================================================
+   あそんで いる 画面：盤は つねに 見える。操作らんの 高さは 固定（中身が かわっても 盤が ずれない）
+   スマホ：上から 帯 → 点数 → 盤（のこりの 高さ いっぱい）→ 操作らん
+   ひろい 画面：左に 盤、右に 点数・操作・できごと
+   ========================================================= */
+.nn-play {
+  height: 100dvh;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 8px 8px;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "top" "score" "board" "ctrl";
+  overflow: hidden;
+}
+.nn-play .nn-top { grid-area: top; position: static; margin: 0 -8px; padding: 6px 10px; }
+.nn-play .nn-top__title { font-size: 20px; }
+.nn-play .nn-top__btn { width: 34px; height: 34px; font-size: 17px; }
+.nn-play .nn-side { display: contents; }
+
+.nn-play .nn-score { grid-area: score; grid-template-columns: repeat(var(--np, 2), minmax(0, 1fr)); gap: 4px; }
+.nn-play .nn-pl { gap: 2px; padding: 1px 4px 1px 1px; border-width: 2px; border-radius: 10px; }
+.nn-play .nn-pl__face { width: 30px; height: 30px; }
+.nn-play .nn-pl__body { display: flex; flex-direction: column; line-height: 1.15; }
+.nn-play .nn-pl__name { font-size: 11px; }
+.nn-play .nn-pl__name small { display: none; }
+.nn-play .nn-pl__pts { font-size: 16px; }
+.nn-play .nn-pl__pts small { font-size: 10px; }
+.nn-play .nn-pl__left { font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; }
+
+.nn-play .nn-board-box {
+  grid-area: board;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nn-play .nn-board { width: min(100cqw, 100cqh); height: auto; }
+
+.nn-play .nn-ctrl {
+  grid-area: ctrl;
+  height: 176px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.nn-play .nn-status { padding: 4px 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.nn-play .nn-panel { flex: 1; min-height: 0; padding: 6px 8px; gap: 6px; border-width: 2px; border-radius: 14px; overflow: hidden; align-content: flex-start; }
+.nn-play .nn-panel--act { gap: 6px; justify-content: center; }
+.nn-play .nn-hand__tile { width: 56px; height: 56px; }
+.nn-play .nn-panel__hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nn-play .nn-panel--act .nn-panel__hint { white-space: normal; }
+.nn-play .nn-btn--small { min-height: 40px; padding: 4px 12px; font-size: 14px; border-width: 3px; }
+.nn-play .nn-panel--act .nn-btn { min-height: 44px; font-size: 15px; }
+.nn-play .nn-log { display: none; }
+
+.nn-btn--tako { background: #7b4bb3; }
+
+/* タコ：おいた マスの 絵と、ねこを おけない 5マス */
+.nn-tako { position: absolute; inset: 8%; width: 84%; height: 84%; z-index: 1; pointer-events: none; }
+.nn-cell.is-tako-zone::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(45deg, rgba(123, 75, 179, .22) 0 5px, transparent 5px 10px);
+}
+.nn-cell.is-tako-target { cursor: pointer; }
+.nn-cell.is-tako-target::after { content: ''; position: absolute; inset: 0; z-index: 2; box-shadow: inset 0 0 0 3px #7b4bb3; background: rgba(123, 75, 179, .18); }
+
+/* できごとの しらせは 盤の 上の ほうに（操作らんに かぶらない） */
+.nn-toasts { top: 56px; bottom: auto; }
+.nn-toast.is-tako { background: rgba(123, 75, 179, .95); }
+
+@media (min-width: 880px) and (orientation: landscape) {
+  .nn-play {
+    max-width: 1280px;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "top top" "board side";
+    column-gap: 14px;
+  }
+  .nn-play .nn-side { grid-area: side; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; padding-top: 4px; }
+  .nn-play .nn-score { grid-template-columns: 1fr 1fr; }
+  .nn-play .nn-pl__face { width: 40px; height: 40px; }
+  .nn-play .nn-pl__name { font-size: 13px; }
+  .nn-play .nn-pl__pts { font-size: 20px; }
+  .nn-play .nn-pl__left { font-size: 11px; }
+  .nn-play .nn-ctrl { height: 230px; }
+  .nn-play .nn-hand__tile { width: 72px; height: 72px; }
+  .nn-play .nn-log { display: block; }
+}
