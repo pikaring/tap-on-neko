@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29p';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29q';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -47,6 +47,8 @@
   ];
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
   var TAKO_VOTES = 2;        /* タコは ねこ 2匹ぶんの 票 */
+  var CPU_TAKO_MIN_FOES = 0;  /* CPU が タコを 考える：逃がせる 相手の ねこの かず（0＝票の ためだけでも 考える） */
+  var CPU_TAKO_BIAS = -2;     /* CPU が タコを つかう ときの ためらい（1回しか ない ぶん） */
   var SHOP_POINTS = 5;       /* 魚屋：完成で 5点（まわり 3×3 の 多数派） */
   var NAP_POINTS = 3;        /* ひるね猫：さいごまで なわばりの 外に いれば 1匹 3点（なわばりに のまれたら 持ち主に とられる） */
   /* 格子点の 採点ずみ しるし */
@@ -467,15 +469,15 @@
         }
       }
     });
-    /* タコ：相手の ねこが 2匹 以上 のぞける ところだけ ためす（つかうと 1回 へるので 少し ひかえめに） */
+    /* タコ：相手の ねこが CPU_TAKO_MIN_FOES 匹 以上 逃げる ところだけ ためす（つかうと 1回 へるので CPU_TAKO_BIAS だけ ひかえめに） */
     if (P.takoLeft > 0) {
       for (var c = 0; c < N; c++) {
         if (!canTako(s, c)) continue;
         var foes = takoZone(c).filter(function (x) { return x !== c && takoScares(s, x); }).length;
-        if (foes < 2) continue;
+        if (foes < CPU_TAKO_MIN_FOES) continue;
         var s3 = clone(s);
         putTako(s3, c);
-        consider(s3, { type: 'tako', c: c }, -3);
+        consider(s3, { type: 'tako', c: c }, CPU_TAKO_BIAS);
       }
     }
     return best.act || { type: 'pass' };
