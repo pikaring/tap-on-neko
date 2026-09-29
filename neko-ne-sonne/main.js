@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29o';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29p';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -192,7 +192,7 @@
       var k = f.tops.length;
       var mark = k === 0 ? NOBODY : k > 1 ? TIE : f.tops[0];
       f.verts.forEach(function (v) { s.vo[v] = mark; });
-      var pts = k ? Math.floor(f.pts / k) : 0;               /* 同率首位は 人数で わって 切りすて */
+      var pts = k === 1 ? f.pts : 0;                          /* 同数は セキ：だれの ものでも なく 0点（ねこも とらない） */
       f.tops.forEach(function (p) { s.players[p].score += pts; });
       /* 持ち主が きまったら、境界の 相手の ねこと、中で ねて いる 相手の ひるね猫を とる（盤から のぞき 1匹 1点）。自分の ねこは のこる */
       var cap = 0;
@@ -216,7 +216,7 @@
       if (!t || !t.shop || s.shopDone[c] !== undefined) return;
       var st = shopState(s, c);
       if (st.empty) return;
-      var k = st.tops.length, pts = k ? Math.floor(SHOP_POINTS / k) : 0;   /* 同数は 人数で わって 切りすて */
+      var k = st.tops.length, pts = k === 1 ? SHOP_POINTS : 0;   /* 同数（店番が いない）は 0点 */
       s.shopDone[c] = k === 0 ? NOBODY : k > 1 ? TIE : st.tops[0];
       st.tops.forEach(function (p) { s.players[p].score += pts; s.players[p].shopPts += pts; });
       events.push({ shop: true, tops: st.tops, pts: pts });
@@ -423,7 +423,8 @@
     /* 未完成で 点に なりうる 面：いま 多数派なら 面積の 一部を 見込む */
     faces(s).faces.forEach(function (f) {
       if (f.closed || f.exit || !f.tops.length) return;
-      var share = f.tops.indexOf(p) >= 0 ? 1 / f.tops.length : -1 / Math.max(1, s.n - 1);
+      if (f.tops.length !== 1) return;                        /* 同数の ままなら セキ（0点） */
+      var share = f.tops[0] === p ? 1 : -1 / Math.max(1, s.n - 1);
       v += share * Math.min(f.pts, 12) * 1.2;
     });
     /* ひるね猫：なわばりの 外に いれば さいごに 点（トンネル側なら ほぼ 確実） */
@@ -437,7 +438,8 @@
       if (!t || !t.shop || s.shopDone[c] !== undefined) return;
       var st = shopState(s, c);
       if (!st.tops.length) return;
-      var share = st.tops.indexOf(p) >= 0 ? 1 / st.tops.length : -1 / Math.max(1, s.n - 1);
+      if (st.tops.length !== 1) return;
+      var share = st.tops[0] === p ? 1 : -1 / Math.max(1, s.n - 1);
       v += share * SHOP_POINTS * 0.5;
     });
     return v;
@@ -774,7 +776,7 @@
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
       '</ul><h3>🐟 魚屋</h3><ul>' +
       '<li>山札に 魚屋が 6まい（道なし 4・行き止まりの 道つき 2）。おいた 人の ねこが 魚屋に のる。</li>' +
-      '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。<b>まわり 3×3（魚屋も ふくむ）で ねこが いちばん 多い 人</b>（タコは 2匹ぶん）が <b>5点</b>を もらう。同数なら <b>魚屋に のって いる ねこの 持ち主</b>の 勝ち（その 人が 同数に いない ときは 人数で わる）。</li>' +
+      '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。<b>まわり 3×3（魚屋も ふくむ）で ねこが いちばん 多い 人</b>（タコは 2匹ぶん）が <b>5点</b>を もらう。同数なら <b>魚屋に のって いる ねこの 持ち主</b>の 勝ち（その 人が 同数に いない ときは だれの ものでも なく 0点）。</li>' +
       '<li>おいた 人の 点とは かぎらない。まわりに ねこを おいて 守るか、よせて うばうか。完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>💤 平地の ひるね猫</h3><ul>' +
       '<li>道の ない 平地の タイルにも、おいた 人の ねこが のる（ひるね猫）。なわばりの 票には ならない。魚屋の まわりの 3×3 では 1匹と 数える。</li>' +
@@ -788,7 +790,7 @@
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 上と 下の 辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、<b>面が かかった タイル 1まいにつき 1点</b>（¼だけ かかって いても 1点）を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
-      '<li>同数なら 点を 人数で わって 切りすて。</li>' +
+      '<li>同数なら <b>セキ</b>（囲碁と おなじ）：だれの ものでも なく 0点、ねこも とらない（灰色）。</li>' +
       '<li>持ち主は 境界の <b>相手の ねこ</b>と、中で ねて いる <b>相手の ひるね猫を とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。自分の ねこは のこる。</li>' +
       '</ul><h3>おわり</h3><ul>' +
       '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても トンネルを ふくむ 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
@@ -814,13 +816,13 @@
     settle(game).forEach(function (e) {
       if (e.shop) {
         if (e.tops.length === 1) say('🐟 ' + pname(e.tops[0]) + 'が 魚屋を とった！ +' + e.pts + '点', 'score');
-        else if (e.tops.length > 1) say('🐟 魚屋は 同数（' + e.tops.map(pname).join('・') + 'に ' + e.pts + '点ずつ）', '');
+        else if (e.tops.length > 1) say('🐟 魚屋は 同数（' + e.tops.map(pname).join('・') + '）で だれの ものでも ない', '');
         else say('🐟 魚屋の まわりが うまった（ねこが いないので 点なし）', '');
         return;
       }
       if (e.tops.length === 1) say('🏠 ' + pname(e.tops[0]) + 'の なわばり 完成！ +' + e.pts + '点' +
         (e.cap ? '、ねこを ' + e.cap + '匹 とった（+' + e.cap + '点）' : ''), 'score');
-      else if (e.tops.length > 1) say('なわばりが 同数で 完成（' + e.tops.map(pname).join('・') + 'に ' + e.pts + '点ずつ）', '');
+      else if (e.tops.length > 1) say('なわばりが 同数で セキ（' + e.tops.map(pname).join('・') + '）：だれの ものでも ない', '');
       else say('面が とじた（ねこが いないので だれの ものでも ない）', '');
     });
     endTurn(game, acted);
