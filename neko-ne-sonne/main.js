@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29d';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29e';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -40,7 +40,9 @@
     { m: 5, n: 20 },    /* 直線 */
     { m: 3, n: 24 },    /* 角 */
     { m: 1, n: 12 },    /* 行き止まり */
-    { m: 0, n: 8 }      /* 道なし */
+    { m: 0, n: 8 },     /* 道なし */
+    { m: 0, n: 4, shop: true },   /* 魚屋（道なしの 平地） */
+    { m: 1, n: 2, shop: true }    /* 魚屋（行き止まりの 道つき） */
   ];
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
   /* 格子点の 採点ずみ しるし */
@@ -61,7 +63,7 @@
   }
   function buildDeck() {
     var d = [], uid = 1;
-    DECK_DEF.forEach(function (def) { for (var i = 0; i < def.n; i++) d.push({ uid: uid++, m: def.m }); });
+    DECK_DEF.forEach(function (def) { for (var i = 0; i < def.n; i++) d.push({ uid: uid++, m: def.m, shop: !!def.shop }); });
     return shuffle(d);
   }
   /** トンネル：四辺の まん中の マスの 外がわの 辺（その 両はしの 格子点）。ここを ふくむ 面は 0点 */
@@ -90,6 +92,7 @@
       vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
       markers: [],                               /* なわばりの 目じるしの ねこ {v, p} */
       takos: [],                                 /* タコ {c: マス, p: おいた 人}。ねこと おなじく 1票 */
+      shopDone: {},                              /* 採点ずみの 魚屋 {マス: 持ち主 | NOBODY} */
       exits: exitVerts(),
       deck: buildDeck(),
       current: 0, turn: 0, passes: 0, phase: 'playing', last: -1, log: [], _f: null
@@ -107,8 +110,8 @@
       players: s.players.map(function (p) {
         return { index: p.index, cat: p.cat, human: p.human, catsLeft: p.catsLeft, score: p.score, captured: p.captured, takoLeft: p.takoLeft, hand: sharedHand || p.hand.slice() };
       }),
-      cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat } : null; }),
-      vo: new Int8Array(s.vo), markers: s.markers.slice(), takos: s.takos.slice(), exits: s.exits,
+      cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat, shop: c.shop } : null; }),
+      vo: new Int8Array(s.vo), markers: s.markers.slice(), takos: s.takos.slice(), exits: s.exits, shopDone: Object.assign({}, s.shopDone),
       deck: s.deck, current: s.current, turn: s.turn, passes: s.passes, phase: s.phase, last: s.last, log: null, _f: null
     };
   }
@@ -222,8 +225,35 @@
       if (k === 1) { s.players[f.tops[0]].catsLeft--; s.markers.push({ v: centerVert(f), p: f.tops[0] }); }
       events.push({ tops: f.tops.slice(), area: f.area, pts: pts });
     });
+    /* 魚屋（教会の ような マス）：まわりの 盤内の マスが ぜんぶ うまったら、魚屋の ねこ（か タコ）の 持ち主に
+       まわり 3×3 の うち 盤内の マスの かず（まん中 9・辺 6・角 4）。猫街モードは ねこが 手もとへ もどる */
+    s.cells.forEach(function (t, c) {
+      if (!t || !t.shop || s.shopDone[c] !== undefined) return;
+      var st = shopState(s, c);
+      if (st.empty) return;
+      s.shopDone[c] = st.owner === null ? NOBODY : st.owner;
+      if (st.owner !== null) {
+        s.players[st.owner].score += st.total;
+        if (s.mode !== 'go' && t.cat !== null) { s.players[t.cat].catsLeft++; t.cat = null; }
+      }
+      events.push({ shop: true, tops: st.owner === null ? [] : [st.owner], pts: st.owner === null ? 0 : st.total });
+    });
     if (events.length) s._f = null;
     return events;
+  }
+
+  /** 魚屋の ようす：まわり 3×3（盤内）の マス数・空きマス数・持ち主 */
+  function shopState(s, c) {
+    var x = c % SIZE, y = (c / SIZE) | 0, total = 0, empty = 0;
+    for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+      var t = tileAt(s, x + dx, y + dy);
+      if (t === undefined) continue;
+      total++;
+      if (t === null) empty++;
+    }
+    var owner = s.cells[c].cat;
+    if (owner === null) { var tk = takoAt(s, c); owner = tk ? tk.p : null; }
+    return { total: total, empty: empty, owner: owner };
   }
 
   /** 合計点：なわばりの 点（囲碁モードは とった ねこを ふくむ）＋ 猫街モードは 手もとの ねこ */
@@ -277,6 +307,11 @@
       [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].forEach(function (p) { near[p[1] * V + p[0]] = true; });
     });
     if (!any) return false;
+    /* 持ち主の いる 未完成の 魚屋が あれば まだ つづく */
+    for (var c = 0; c < s.cells.length; c++) {
+      var t = s.cells[c];
+      if (t && t.shop && s.shopDone[c] === undefined) { var st = shopState(s, c); if (st.owner !== null && st.empty) return true; }
+    }
     var sim = { n: s.n, exits: s.exits, cells: s.cells.map(function (c) { return c || { m: 15, uid: 0, cat: null }; }) };
     return computeFaces(sim).faces.some(function (f) {
       return !f.exit && f.area > 0 && f.verts.some(function (v) { return near[v]; });
@@ -285,12 +320,12 @@
   function placeTile(s, hi, r, c) {
     var t = s.players[s.current].hand.splice(hi, 1)[0];
     /* 囲碁モード：猫道の ある タイルは おいた 人の 色（ねこが のる） */
-    s.cells[c] = { m: rot(t.m, r), uid: t.uid, cat: s.mode === 'go' && t.m && !noCatZone(s, c) ? s.current : null };
+    s.cells[c] = { m: rot(t.m, r), uid: t.uid, shop: !!t.shop, cat: s.mode === 'go' && (t.m || t.shop) && !noCatZone(s, c) ? s.current : null };
     s.last = c;
     s._f = null;
   }
   /** ねこは いま おいた タイルの 猫道の 上だけ */
-  function canCat(s, c) { var t = s.cells[c]; return !!t && t.m !== 0 && t.cat === null && c === s.last && s.players[s.current].catsLeft > 0 && !noCatZone(s, c); }
+  function canCat(s, c) { var t = s.cells[c]; return !!t && (t.m !== 0 || t.shop) && t.cat === null && c === s.last && s.players[s.current].catsLeft > 0 && !noCatZone(s, c); }
   function putCat(s, c) { s.cells[c].cat = s.current; s.players[s.current].catsLeft--; s._f = null; }
   
 
@@ -342,6 +377,13 @@
       if (f.closed || f.exit || !f.tops.length) return;
       var share = f.tops.indexOf(p) >= 0 ? 1 / f.tops.length : -1 / Math.max(1, s.n - 1);
       v += share * Math.min(f.area, 40) * 0.4;
+    });
+    /* 未完成の 魚屋：うまった ぶんを 見込む */
+    s.cells.forEach(function (t, c) {
+      if (!t || !t.shop || s.shopDone[c] !== undefined) return;
+      var st = shopState(s, c);
+      if (st.owner === null) return;
+      v += (st.owner === p ? 1 : -1 / Math.max(1, s.n - 1)) * (st.total - st.empty) * 0.5;
     });
     return v;
   }
@@ -453,9 +495,26 @@
         s.push('<circle cx="' + (50 + e[0]) / 2 + '" cy="' + (50 + e[1]) / 2 + '" r="3" fill="var(--path-edge)" opacity=".7" />');
       });
     }
+    /* 魚屋：青い しまの 日よけの 小さな 店と さかな。ねこは 店先に */
+    if (t.shop) {
+      s.push('<g transform="translate(22,16)">' +
+        '<rect x="0" y="10" width="56" height="40" rx="3" fill="#fff8ec" stroke="#3a2a20" stroke-width="2.5"/>' +
+        '<path d="M-3 12 L59 12 L55 0 L1 0 Z" fill="#fff" stroke="#3a2a20" stroke-width="2.5"/>' +
+        '<path d="M8 0 L6 12 M20 0 L19 12 M36 0 L37 12 M48 0 L50 12" stroke="#4a7fb8" stroke-width="6"/>' +
+        '<ellipse cx="19" cy="28" rx="10" ry="5" fill="#5a7fa8"/><path d="M28 28 L35 23 L35 33 Z" fill="#5a7fa8"/>' +
+        '<ellipse cx="38" cy="40" rx="8" ry="4" fill="#d9705a"/><path d="M45 40 L50 36 L50 44 Z" fill="#d9705a"/>' +
+        '</g>');
+      if (o.shopDone !== undefined && o.shopDone !== null) {
+        var dc = o.shopDone >= 0 ? CATS[game.players[o.shopDone].cat].color : '#8a8a8a';
+        s.push('<circle cx="84" cy="16" r="11" fill="' + dc + '" stroke="#fff" stroke-width="2"/><path d="M78 16 L83 21 L91 11" stroke="#fff" stroke-width="3.5" fill="none"/>');
+      }
+    }
     if (t.cat !== null && t.cat !== undefined) {
       var pl = game.players[t.cat], col = CATS[pl.cat].color;
-      if (owned) {
+      if (t.shop) {
+        s.push('<ellipse cx="50" cy="86" rx="18" ry="6" fill="' + col + '" stroke="#fff" stroke-width="2" />');
+        s.push(sprite(pl.cat, false, 0, 0, 50, 68, 42));                 /* 魚屋の 店先に すわる */
+      } else if (owned) {
         s.push(sprite(pl.cat, false, 0, 0, 50, 48, 50));                 /* 囲碁モードは ねこ 少し 小さめ */
       } else {
         s.push('<ellipse cx="50" cy="76" rx="22" ry="7" fill="' + col + '" stroke="#fff" stroke-width="2.5" />');
@@ -562,7 +621,7 @@
     var deckInfo = '<span class="nn-deck">山札 ' + game.deck.length + '</span>';
     var label = game.shared ? '<span class="nn-deck">場（共通）</span>' : '';
     if (isAi()) {
-      return '<div class="nn-panel nn-hand">' + label + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
+      return '<div class="nn-panel nn-hand">' + label + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, shop: t.shop, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
     }
     if (ui.mode === 'tako') {
       return '<div class="nn-panel nn-panel--act">' +
@@ -586,7 +645,7 @@
       P.hand.map(function (t, i) {
         var sel = i === ui.sel;
         return '<button type="button" class="nn-hand__tile' + (sel ? ' is-sel' : '') + '" data-action="hand" data-i="' + i + '" aria-label="タイル' + (i + 1) + '">' +
-          tileSVG({ m: sel ? rot(t.m, ui.rot) : t.m, uid: t.uid, cat: null }) + '</button>';
+          tileSVG({ m: sel ? rot(t.m, ui.rot) : t.m, uid: t.uid, shop: t.shop, cat: null }) + '</button>';
       }).join('') + deckInfo +
       '<p class="nn-panel__hint">' + esc(hint) + '</p>' +
       '<div class="nn-panel__row">' +
@@ -621,7 +680,8 @@
     for (var i = 0; i < N; i++) {
       var t = game.cells[i], x = i % SIZE, y = (i / SIZE) | 0;
       var cls = 'nn-cell' + (mark[i] ? ' ' + mark[i] : '') + (i === game.last ? ' is-last' : '') + (t ? '' : ' is-empty') + (zone[i] ? ' is-tako-zone' : '');
-      var inner = t ? tileSVG(t, { quads: { NW: quadColor(x, y), NE: quadColor(x + 1, y), SW: quadColor(x, y + 1), SE: quadColor(x + 1, y + 1) } }) : '';
+      var inner = t ? tileSVG(t, { quads: { NW: quadColor(x, y), NE: quadColor(x + 1, y), SW: quadColor(x, y + 1), SE: quadColor(x + 1, y + 1) },
+        shopDone: game.shopDone[i] === undefined ? null : game.shopDone[i] }) : '';
       var tk = takoAt(game, i);
       if (tk) inner += '<span class="nn-tako" style="--pc:' + CATS[game.players[tk.p].cat].color + '"><img src="images/tako.png" alt="タコ（' + CATS[game.players[tk.p].cat].name + '）"></span>';
       cells += mark[i] ? '<button type="button" class="' + cls + '" data-action="cell" data-c="' + i + '">' + inner + '</button>'
@@ -682,6 +742,10 @@
       '<li>すでに ある タイルの となりに おく。<b>となりの タイルとの 辺は ぴったり あわせる</b>（道が 辺まで 出て いたら かならず 道どうしで つなぐ）。盤の 端へ 出る 猫道は よい。</li>' +
       '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おく（囲碁モードは 自動・猫街モードは えらぶ）。</li>' +
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
+      '</ul><h3>🐟 魚屋</h3><ul>' +
+      '<li>山札に 魚屋が 6まい（道なし 4・行き止まりの 道つき 2）。おいた 人は 魚屋に ねこを おける（囲碁モードは 自動）。</li>' +
+      '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。魚屋の ねこ（か タコ）の 持ち主が、まわり 3×3 の 盤内の マスの かず（まん中 9点・辺 6点・角 4点）を もらう。猫街モードは ねこが 手もとへ もどる。</li>' +
+      '<li>完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
       '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
@@ -714,6 +778,11 @@
 
   function afterAction(acted) {
     settle(game).forEach(function (e) {
+      if (e.shop) {
+        if (e.tops.length) say('🐟 ' + pname(e.tops[0]) + 'の 魚屋が 完成！ +' + e.pts + '点', 'score');
+        else say('🐟 魚屋の まわりが うまった（ねこが いないので 点なし）', '');
+        return;
+      }
       if (e.tops.length === 1) say('🏠 ' + pname(e.tops[0]) + 'の なわばり 完成！ +' + e.pts + '点' +
         (game.mode === 'go' ? (e.cap ? '、ねこを ' + e.cap + '匹 とった（+' + e.cap + '点）' : '') : '（境界の ねこは 手もとへ）'), 'score');
       else if (e.tops.length > 1) say('なわばりが 同数で 完成（' + e.tops.map(pname).join('・') + 'に ' + e.pts + '点ずつ）', '');
