@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29l';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29m';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -47,6 +47,8 @@
   ];
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
   var TAKO_VOTES = 2;        /* タコは ねこ 2匹ぶんの 票 */
+  var SHOP_POINTS = 5;       /* 魚屋：完成で 5点（まわり 3×3 の 多数派） */
+  var NAP_POINTS = 5;        /* ひるね猫：さいごに なわばりの 外に いれば 1匹 5点 */
   /* 格子点の 採点ずみ しるし */
   var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
@@ -210,7 +212,7 @@
       if (!t || !t.shop || s.shopDone[c] !== undefined) return;
       var st = shopState(s, c);
       if (st.empty) return;
-      var k = st.tops.length, pts = k ? Math.floor(st.total / k) : 0;   /* 同数は 人数で わって 切りすて */
+      var k = st.tops.length, pts = k ? Math.floor(SHOP_POINTS / k) : 0;   /* 同数は 人数で わって 切りすて */
       s.shopDone[c] = k === 0 ? NOBODY : k > 1 ? TIE : st.tops[0];
       st.tops.forEach(function (p) { s.players[p].score += pts; });
       events.push({ shop: true, tops: st.tops, pts: pts });
@@ -330,7 +332,7 @@
   function placeTile(s, hi, r, c) {
     var t = s.players[s.current].hand.splice(hi, 1)[0];
     /* 猫道（か 魚屋）の ある タイルは おいた 人の 色（ねこが のる） */
-    /* 平地（道なし）にも ねこが のる：ひるね猫。なわばりの 票には ならず、さいごに 野良地で 数える */
+    /* 平地（道なし）にも ねこが のる：ひるね猫。なわばりの 票には ならず、さいごに なわばりの 外に いれば 1匹 5点 */
     s.cells[c] = { m: rot(t.m, r), uid: t.uid, shop: !!t.shop, cat: !noCatZone(s, c) ? s.current : null };
     s.last = c;
     s._f = null;
@@ -375,20 +377,22 @@
   }
   function isNapper(t) { return !!t && t.m === 0 && !t.shop && t.cat !== null; }
 
-  /** さいごの 野良地：なわばりに ならなかった 面（トンネルに つながった 面・未完成の 面）は、
-      その 中の ひるね猫（平地の ねこ）が いちばん 多い 人が、面が かかった タイル 1まいにつき 1点 */
+  /** さいごに：なわばりに ならなかった 面（トンネルに つながった 面・未完成の 面）に いる ひるね猫は 1匹 NAP_POINTS 点。
+      完成した なわばりの 中の ひるね猫は 0点 */
+  function napFree(s, c) {
+    var F = faces(s), x = c % SIZE, y = (c / SIZE) | 0;
+    var f = F.faces[F.of[y * V + x]];        /* 平地の タイルは 1つの 面の 中に ある（どの 角でも おなじ 面） */
+    return !isScored(s, f);
+  }
   function scoreStrays(s) {
+    var count = [0, 0, 0, 0];
+    s.cells.forEach(function (t, c) { if (isNapper(t) && napFree(s, c)) count[t.cat]++; });
     var events = [];
-    faces(s).faces.forEach(function (f) {
-      if (isScored(s, f) || !f.pts) return;
-      var w = [0, 0, 0, 0];
-      Object.keys(f.tiles).forEach(function (c) { var t = s.cells[c]; if (isNapper(t)) w[t.cat]++; });
-      var max = Math.max.apply(null, w), tops = [];
-      for (var p = 0; p < s.n; p++) if (max > 0 && w[p] === max) tops.push(p);
-      if (!tops.length) return;
-      var pts = Math.floor(f.pts / tops.length);
-      tops.forEach(function (p) { s.players[p].score += pts; s.players[p].nap += pts; });
-      events.push({ tops: tops, pts: pts, tiles: f.pts, naps: max });
+    count.forEach(function (n, p) {
+      if (!n || p >= s.n) return;
+      s.players[p].score += n * NAP_POINTS;
+      s.players[p].nap += n * NAP_POINTS;
+      events.push({ p: p, naps: n, pts: n * NAP_POINTS });
     });
     return events;
   }
@@ -412,15 +416,11 @@
       var share = f.tops.indexOf(p) >= 0 ? 1 / f.tops.length : -1 / Math.max(1, s.n - 1);
       v += share * Math.min(f.pts, 12) * 1.2;
     });
-    /* 野良地（トンネルに つながった 面・未完成の 面）：ひるね猫が 多ければ さいごに 点 */
-    faces(s).faces.forEach(function (f) {
-      if (isScored(s, f) || !f.pts) return;
-      var w = [0, 0, 0, 0];
-      Object.keys(f.tiles).forEach(function (c) { var t = s.cells[c]; if (isNapper(t)) w[t.cat]++; });
-      var max = Math.max.apply(null, w);
-      if (!max) return;
-      var mine = w[p] === max ? 1 : -1 / Math.max(1, s.n - 1);
-      v += mine * Math.min(f.pts, 30) * (f.exit ? 0.5 : 0.2);
+    /* ひるね猫：なわばりの 外に いれば さいごに 点（トンネル側なら ほぼ 確実） */
+    s.cells.forEach(function (t, c) {
+      if (!isNapper(t) || !napFree(s, c)) return;
+      var F = faces(s), f = F.faces[F.of[((c / SIZE) | 0) * V + c % SIZE]];
+      v += (t.cat === p ? 1 : -1 / Math.max(1, s.n - 1)) * NAP_POINTS * (f.exit ? 0.8 : 0.5);
     });
     /* 未完成の 魚屋：うまった ぶんを 見込む */
     s.cells.forEach(function (t, c) {
@@ -428,7 +428,7 @@
       var st = shopState(s, c);
       if (!st.tops.length) return;
       var share = st.tops.indexOf(p) >= 0 ? 1 / st.tops.length : -1 / Math.max(1, s.n - 1);
-      v += share * st.total * 0.5;
+      v += share * SHOP_POINTS * 0.5;
     });
     return v;
   }
@@ -738,13 +738,13 @@
       var p = game.players[i], win = game.final[i] === top;
       return '<div class="nn-final__row' + (win ? ' is-win' : '') + '" style="--pc:' + CATS[p.cat].color + '">' +
         '<span class="nn-final__rank">' + (rank + 1) + '</span>' + catFace(p.cat, 'nn-final__face', win ? [false, 1, 2] : null) +
-        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '<small>なわばり・魚屋 ' + (p.score - p.captured - p.nap) + '・とった ねこ ' + p.captured + '・野良地 ' + p.nap + '</small></span>' +
+        '<span class="nn-final__name">' + esc(pname(i)) + (win ? ' 👑' : '') + '<small>なわばり・魚屋 ' + (p.score - p.captured - p.nap) + '・とった ねこ ' + p.captured + '・ひるね猫 ' + p.nap + '</small></span>' +
         '<span class="nn-final__pts">' + game.final[i] + '点</span></div>';
     }).join('');
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
       (game.endReason === 'noterr' ? '<p class="nn-modal__note">もう あたらしい なわばりが できないので おしまい</p>' : '') +
       '<div class="nn-final">' + rows + '</div>' +
-      '<p class="nn-modal__note">なわばりは かかった タイル 1まい＝1点 ＋ 魚屋 ＋ とった ねこ 1匹＝1点 ＋ 野良地（ひるね猫）</p>' +
+      '<p class="nn-modal__note">なわばりは かかった タイル 1まい＝1点 ＋ 魚屋 5点 ＋ とった ねこ 1匹＝1点 ＋ なわばりの 外の ひるね猫 1匹＝5点</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
       '<button type="button" class="nn-btn nn-btn--sub" data-action="view">盤面を みる</button></div></div>';
   }
@@ -764,11 +764,11 @@
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
       '</ul><h3>🐟 魚屋</h3><ul>' +
       '<li>山札に 魚屋が 6まい（道なし 4・行き止まりの 道つき 2）。おいた 人の ねこが 魚屋に のる。</li>' +
-      '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。<b>まわり 3×3（魚屋も ふくむ）で ねこが いちばん 多い 人</b>（タコは 2匹ぶん）が、3×3 の 盤内の マスの かず（まん中 9点・辺 6点・角 4点）を もらう。同数は 人数で わる。</li>' +
+      '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。<b>まわり 3×3（魚屋も ふくむ）で ねこが いちばん 多い 人</b>（タコは 2匹ぶん）が <b>5点</b>を もらう。同数は 人数で わる。</li>' +
       '<li>おいた 人の 点とは かぎらない。まわりに ねこを おいて 守るか、よせて うばうか。完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>💤 平地の ひるね猫</h3><ul>' +
       '<li>道の ない 平地の タイルにも、おいた 人の ねこが のる（ひるね猫）。なわばりの 票には ならず、とられない。魚屋の まわりの 3×3 では 1匹と 数える。</li>' +
-      '<li><b>ゲームの さいごに</b>、なわばりに ならなかった 面（トンネルに つながった 面・未完成の 面）＝<b>野良地</b>を 数える。その 中の ひるね猫が いちばん 多い 人が、面が かかった タイル 1まいにつき 1点（同数は 人数で わる）。</li>' +
+      '<li><b>ゲームの さいごに</b>、なわばりに ならなかった ところ（トンネルに つながった 面・未完成の 面）に いる <b>ひるね猫 1匹につき 5点</b>。完成した なわばりの 中の ひるね猫は 0点。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
       '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。</li>' +
       '<li>上下左右の <b>猫道に いる 相手の ねこ だけ</b>が 持ち主の 手もとへ 逃げる（だれの 点にも ならない）。自分の ねこ・<b>魚屋の ねこ</b>・完成した なわばりの ねこは 逃げない。</li>' +
@@ -781,7 +781,7 @@
       '<li>持ち主は 境界の <b>相手の ねこを とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。自分の ねこは のこる。</li>' +
       '</ul><h3>おわり</h3><ul>' +
       '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても トンネルを ふくむ 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
-      '<li>完成して いない 魚屋は 0点。なわばりに ならなかった 面は 野良地として ひるね猫で 数える。</li>' +
+      '<li>完成して いない 魚屋は 0点。なわばりの 外の ひるね猫は 1匹 5点。</li>' +
       '</ul></div></div>';
   }
 
@@ -815,7 +815,7 @@
     endTurn(game, acted);
     if (game.phase === 'over' && game.strayEvents) {
       game.strayEvents.forEach(function (e) {
-        say('💤 野良地（' + e.tiles + 'マス）：' + e.tops.map(pname).join('・') + 'の ひるね猫が いちばん 多い（' + e.naps + '匹）→ +' + e.pts + '点', 'score');
+        say('💤 ' + pname(e.p) + '：なわばりの 外の ひるね猫 ' + e.naps + '匹 → +' + e.pts + '点', 'score');
       });
     }
     if (game.phase === 'playing' && game.swapped) say(pname(game.current) + '：おける タイルが なかったので ' + game.swapped + 'まい 引きなおした', '');
