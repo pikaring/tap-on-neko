@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-30a';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-30b';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -523,12 +523,10 @@
       '<image href="' + url + '" x="' + (-c * 340) + '" y="' + (-r * 340) + '" width="1020" height="1020" /></svg>';
   }
 
-  /* 街区の 絵（images/town-00〜17）。道の ない 平地は 1マス まるごとの 絵（銭湯・図書館・お寺・畑）、
-     ほかは まん中に 十字の 空き地が ある 絵。おなじ タイルは いつも おなじ 絵（回転しても 絵は 回さない） */
-  var TOWN_WHOLE = [6, 11, 13, 15];
-  var TOWN_LANE = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 12, 14, 16, 17];
+  /* 街区の 絵（images/town-00〜17）。どれも まん中に 十字の 空き地が ある。
+     おなじ タイルは いつも おなじ 絵（回転しても 絵は 回さない） */
   function townOf(t) {
-    var k = !t.m && !t.shop ? TOWN_WHOLE[t.uid % TOWN_WHOLE.length] : TOWN_LANE[t.uid % TOWN_LANE.length];
+    var k = (t.uid * 7) % 18;
     return (k < 10 ? '0' : '') + k;
   }
 
@@ -536,7 +534,7 @@
   function tileSVG(t, o) {
     o = o || {};
     var s = ['<rect width="100" height="100" fill="var(--ground)" />',
-      '<image href="images/town-' + townOf(t) + '.webp" width="100" height="100" preserveAspectRatio="none" opacity=".7" />'];
+      '<image href="images/town-' + townOf(t) + '.webp" width="100" height="100" preserveAspectRatio="none" opacity=".9" />'];
     Object.keys(QUAD_RECT).forEach(function (q) {
       if (!o.quads || !o.quads[q]) return;
       var r = QUAD_RECT[q];
