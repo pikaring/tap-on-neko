@@ -7,7 +7,7 @@
    ・面が 完成（中に 空きマスが ない）したら すぐ 採点：面に 面した ねこ（と タコ）の
      多数派が ¼マス＝1点。境界の 相手の ねこは とって 1匹 1点
    ・魚屋は まわりが うまったら 持ち主に まわり 3×3 の 盤内マス数
-   ・タコ（1人 1回）：タイルの かわりに おき、上下左右の ねこを どかす。ねこ 1匹ぶんの 票
+   ・タコ（1人 1回）：自分の ねこと 交換。上下左右の 猫道に いる 相手の ねこを 逃がす。ねこ 2匹ぶんの 票
 
    面の 計算：タイルの 角（格子点）を 1点と みなす。1つの 格子点の まわりの
    ¼マス 4つは かならず つながり、となりの 格子点とは「その あいだを 猫道が
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29h';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29i';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -46,7 +46,7 @@
     { m: 1, n: 2, shop: true }    /* 魚屋（行き止まりの 道つき） */
   ];
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
-  var TAKO_VOTES = 1;        /* タコは ねこ 何匹ぶんの 票か */
+  var TAKO_VOTES = 2;        /* タコは ねこ 2匹ぶんの 票 */
   /* 格子点の 採点ずみ しるし */
   var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
@@ -254,6 +254,13 @@
   function takoAt(s, c) { for (var i = 0; i < s.takos.length; i++) if (s.takos[i].c === c) return s.takos[i]; return null; }
   /** タコは 自分の ねこが のって いる タイルに だけ おける（その ねこと 交換） */
   function canTako(s, c) { var t = s.cells[c]; return !!t && t.cat === s.current && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
+  /** タコで 逃げる ねこ：上下左右の 猫道の 上に いる 相手の ねこ だけ。
+      自分の ねこ・魚屋の ねこ・完成した なわばりの ねこは 逃げない */
+  function takoScares(s, x) {
+    var t = s.cells[x];
+    return !!t && t.cat !== null && t.cat !== s.current && !t.shop && t.m !== 0 && !settledCat(s, x);
+  }
+
   /** 完成した 場所の ねこ（タコでも 追い出せない）：完成した なわばりの 境界の 猫道に いる ねこと、完成した 魚屋の ねこ */
   function settledCat(s, c) {
     var t = s.cells[c];
@@ -275,7 +282,7 @@
     takoZone(c).forEach(function (x) {
       if (x === c) return;
       var t = s.cells[x];
-      if (!t || t.cat === null || settledCat(s, x)) return;
+      if (!takoScares(s, x)) return;
       /* 持ち主の 手もとへ もどる（ねこは 無限なので 数は かわらない。だれの 点にも ならない） */
       t.cat = null;
       removed++;
@@ -402,7 +409,7 @@
     if (P.takoLeft > 0) {
       for (var c = 0; c < N; c++) {
         if (!canTako(s, c)) continue;
-        var foes = takoZone(c).filter(function (x) { return s.cells[x] && s.cells[x].cat !== null && s.cells[x].cat !== p && !settledCat(s, x); }).length;
+        var foes = takoZone(c).filter(function (x) { return x !== c && takoScares(s, x); }).length;
         if (foes < 2) continue;
         var s3 = clone(s);
         putTako(s3, c);
@@ -601,7 +608,7 @@
     }
     if (ui.mode === 'tako') {
       return '<div class="nn-panel nn-panel--act">' +
-        '<p class="nn-panel__hint">むらさきの マス（自分の ねこ）を タコと 交換。上下左右の ねこは 手もとへ もどり（完成した なわばり・魚屋の ねこは のこる）、その 5マスには もう ねこが のらない。タコは ねこ 1匹ぶんの 票</p>' +
+        '<p class="nn-panel__hint">むらさきの マス（自分の ねこ）を タコと 交換。上下左右の 猫道に いる 相手の ねこは 手もとへ 逃げる（魚屋・完成した なわばりの ねこは のこる）。タコは ねこ 2匹ぶんの 票</p>' +
         '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
     }
     var can = anyPlace(game, P), hint = '';
@@ -706,10 +713,10 @@
       '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。魚屋の ねこ（か タコ）の 持ち主が、まわり 3×3 の 盤内の マスの かず（まん中 9点・辺 6点・角 4点）を もらう。魚屋の ねこは そのまま のこる。</li>' +
       '<li>完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
-      '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
-      '<li>ただし <b>完成した なわばりの 境界の ねこと、完成した 魚屋の ねこは 追い出せない</b>。</li>' +
+      '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。</li>' +
+      '<li>上下左右の <b>猫道に いる 相手の ねこ だけ</b>が 持ち主の 手もとへ 逃げる（だれの 点にも ならない）。自分の ねこ・<b>魚屋の ねこ</b>・完成した なわばりの ねこは 逃げない。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
-      '<li>タコは おいた 人の ねこ 1匹と おなじに 数え、ふれて いる なわばりの 票に なる（とられない）。</li>' +
+      '<li>タコは おいた 人の <b>ねこ 2匹ぶん</b>の 票に なる（とられない）。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
