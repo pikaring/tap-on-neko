@@ -46,6 +46,7 @@
     { m: 1, n: 2, shop: true }    /* 魚屋（行き止まりの 道つき） */
   ];
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
+  var TAKO_VOTES = 1;        /* タコは ねこ 何匹ぶんの 票か */
   /* 格子点の 採点ずみ しるし */
   var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
@@ -166,7 +167,7 @@
         var t = s.cells[c];
         if (t && t.cat !== null) f.w[t.cat]++;
       });
-      (s.takos || []).forEach(function (tk) { if (f.border[tk.c]) f.w[tk.p]++; });
+      (s.takos || []).forEach(function (tk) { if (f.border[tk.c]) f.w[tk.p] += TAKO_VOTES; });
       var max = Math.max.apply(null, f.w);
       for (var p = 0; p < s.n; p++) if (max > 0 && f.w[p] === max) f.tops.push(p);
       f.owner = f.tops.length === 1 ? f.tops[0] : null;
