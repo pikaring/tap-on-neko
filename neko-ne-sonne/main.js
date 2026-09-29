@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29q';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29r';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -466,6 +466,11 @@
           var s1 = clone(s);
           placeTile(s1, hi, r, c);
           consider(s1, { type: 'place', hi: hi, r: r, c: c });
+          if (P.takoLeft > 0) {                    /* おく タイルの 上に タコを のせて 出す */
+            var s2 = clone(s1);
+            putTako(s2, c);
+            consider(s2, { type: 'place', hi: hi, r: r, c: c, tako: true }, CPU_TAKO_BIAS);
+          }
         }
       }
     });
@@ -662,7 +667,7 @@
   function renderStatus() {
     var P = game.players[game.current], t;
     if (isAi()) t = pname(game.current) + 'の ばん … かんがえちゅう';
-    else if (ui.mode === 'tako') t = '🐙 タコと 交換する 自分の ねこを えらんでね';
+    else if (ui.mode === 'tako') t = '🐙 タコ：タイルに のせて 出すか、自分の ねこと 交換';
     else t = pname(game.current) + 'の ばん：' + (game.shared ? '場の タイル' : '手札') + 'を えらんで おく';
     return '<p class="nn-status" style="--pc:' + CATS[P.cat].color + '">' + esc(t) + '</p>';
   }
@@ -674,11 +679,6 @@
     if (isAi()) {
       return '<div class="nn-panel nn-hand">' + label + P.hand.map(function (t) { return '<span class="nn-hand__tile is-back">' + tileSVG({ m: t.m, uid: t.uid, shop: t.shop, cat: null }) + '</span>'; }).join('') + deckInfo + '</div>';
     }
-    if (ui.mode === 'tako') {
-      return '<div class="nn-panel nn-panel--act">' +
-        '<p class="nn-panel__hint">むらさきの マス（自分の ねこ）を タコと 交換。上下左右の 猫道に いる 相手の ねこは 手もとへ 逃げる（魚屋・完成した なわばりの ねこは のこる）。タコは ねこ 2匹ぶんの 票</p>' +
-        '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
-    }
     var can = anyPlace(game, P), hint = '';
     if (!P.hand.length) hint = 'タイルが ない…パスしてね';
     else if (!can) hint = '山札が なくなって、おける タイルが ない…パスしてね';
@@ -687,6 +687,7 @@
       for (var c = 0; c < N; c++) if (canPlace(game, c, m)) np++;
       hint = np ? 'きいろの マスに おける（もう一度 タップで まわす）' : 'この むきでは おけない。まわしてみて';
     }
+    if (ui.mode === 'tako') hint = '🐙 きいろ＝この タイルを タコつきで 出す／むらさき＝自分の ねこと 交換';
     return '<div class="nn-panel nn-hand">' + label +
       P.hand.map(function (t, i) {
         var sel = i === ui.sel;
@@ -696,17 +697,20 @@
       '<p class="nn-panel__hint">' + esc(hint) + '</p>' +
       '<div class="nn-panel__row">' +
       (ui.sel !== null && can ? '<button type="button" class="nn-btn nn-btn--small" data-action="rotate">↻ まわす</button>' : '') +
-      (P.takoLeft > 0 ? '<button type="button" class="nn-btn nn-btn--small nn-btn--tako" data-action="tako">🐙 タコ</button>' : '') +
+      (P.takoLeft > 0 ? (ui.mode === 'tako'
+        ? '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="tako-cancel">🐙 タコを やめる</button>'
+        : '<button type="button" class="nn-btn nn-btn--small nn-btn--tako" data-action="tako">🐙 タコ</button>') : '') +
       (!can ? '<button type="button" class="nn-btn nn-btn--small nn-btn--sub" data-action="pass">パス</button>' : '') +
       '</div></div>';
   }
 
   function renderBoard() {
     var P = game.players[game.current], mark = {};
-    if (game.phase === 'playing' && !isAi() && ui.mode === 'tile' && ui.sel !== null && P.hand[ui.sel]) {
+    if (game.phase === 'playing' && !isAi() && (ui.mode === 'tile' || ui.mode === 'tako') && ui.sel !== null && P.hand[ui.sel]) {
       var m = rot(P.hand[ui.sel].m, ui.rot);
       for (var c = 0; c < N; c++) if (canPlace(game, c, m)) mark[c] = 'is-place';
-    } else if (game.phase === 'playing' && !isAi() && ui.mode === 'tako') {
+    }
+    if (game.phase === 'playing' && !isAi() && ui.mode === 'tako') {
       for (var c2 = 0; c2 < N; c2++) if (canTako(game, c2)) mark[c2] = 'is-tako-target';
     }
     var zone = {};
@@ -785,7 +789,7 @@
       '<li>ひるね猫の いる 面が <b>相手の なわばりとして 完成したら、その ひるね猫は とられる</b>（相手に 1点）。</li>' +
       '<li><b>ゲームの さいごまで</b> なわばりの 外（トンネルに つながった 面・未完成の 面）で ねて いた ひるね猫は <b>1匹 3点</b>。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
-      '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。</li>' +
+      '<li>「🐙 タコ」を おして、次の どちらかで 出す：<br>① <b>手札の タイルを おく とき、その 上に タコを のせて 出す</b>（ねこの かわりに タコ。タイルを おく 手番の まま）<br>② タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>する。</li>' +
       '<li>上下左右の <b>猫道に いる 相手の ねこ だけ</b>が 持ち主の 手もとへ 逃げる（だれの 点にも ならない）。自分の ねこ・<b>魚屋の ねこ</b>・完成した なわばりの ねこは 逃げない。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
       '<li>タコは おいた 人の <b>ねこ 2匹ぶん</b>の 票に なる（とられない）。</li>' +
@@ -838,6 +842,14 @@
     render();
   }
 
+  /** 手札の タイルを おいて、その 上に タコを のせて 出す（タイルを おく 手番の まま） */
+  function doTakoPlace(hi, r, c) {
+    placeTile(game, hi, r, c);
+    var n = putTako(game, c);
+    say('🐙 ' + pname(game.current) + 'が タコつきの タイルを おいた！ ' + (n ? 'ねこ ' + n + '匹が 手もとへ にげかえった' : 'にげた ねこは いなかった'), 'tako');
+    afterAction(true);
+  }
+
   function doTako(c) {
     var n = putTako(game, c);
     say('🐙 ' + pname(game.current) + 'が タコを おいた！ ' + (n ? 'ねこ ' + n + '匹が 手もとへ にげかえった' : 'にげた ねこは いなかった'), 'tako');
@@ -853,6 +865,7 @@
       var p = game.current, act = cpuChoose(game);
       if (act.type === 'pass') { say(pname(p) + '：パス', ''); afterAction(false); return; }
       if (act.type === 'tako') { doTako(act.c); return; }
+      if (act.tako) { doTakoPlace(act.hi, act.r, act.c); return; }
       placeTile(game, act.hi, act.r, act.c);
       afterAction(true);
     }, 650);
@@ -874,11 +887,16 @@
     if (a === 'hand') {
       var i = Number(el.dataset.i);
       if (ui.sel === i) ui.rot = (ui.rot + 1) % 4; else { ui.sel = i; ui.rot = 0; }
-      ui.mode = 'tile'; render();
+      if (ui.mode !== 'tako') ui.mode = 'tile';
+      render();
     } else if (a === 'rotate') { ui.rot = (ui.rot + 1) % 4; render(); }
     else if (a === 'tako' && P.takoLeft > 0) { ui.mode = 'tako'; render(); }
     else if (a === 'tako-cancel') { ui.mode = 'tile'; render(); }
-    else if (a === 'cell' && ui.mode === 'tako') { var tc = Number(el.dataset.c); if (canTako(game, tc)) doTako(tc); }
+    else if (a === 'cell' && ui.mode === 'tako') {
+      var tc = Number(el.dataset.c);
+      if (!game.cells[tc] && ui.sel !== null && canPlace(game, tc, rot(P.hand[ui.sel].m, ui.rot))) doTakoPlace(ui.sel, ui.rot, tc);
+      else if (canTako(game, tc)) doTako(tc);
+    }
     else if (a === 'cell' && ui.mode === 'tile' && ui.sel !== null) {
       var c = Number(el.dataset.c), m = rot(P.hand[ui.sel].m, ui.rot);
       if (!canPlace(game, c, m)) return;
