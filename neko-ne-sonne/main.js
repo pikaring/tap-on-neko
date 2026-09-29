@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29m';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-29n';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -48,7 +48,7 @@
   var TAKO_PER_PLAYER = 1;   /* タコ：1人 1回（タイルを おく かわりに） */
   var TAKO_VOTES = 2;        /* タコは ねこ 2匹ぶんの 票 */
   var SHOP_POINTS = 5;       /* 魚屋：完成で 5点（まわり 3×3 の 多数派） */
-  var NAP_POINTS = 5;        /* ひるね猫：さいごに なわばりの 外に いれば 1匹 5点 */
+  var NAP_POINTS = 3;        /* ひるね猫：さいごまで なわばりの 外に いれば 1匹 3点（なわばりに のまれたら 持ち主に とられる） */
   /* 格子点の 採点ずみ しるし */
   var UNSCORED = -1, TIE = -2, NOBODY = -3;
 
@@ -90,7 +90,7 @@
     var s = {
       n: n, size: R.size, handMax: R.hand, shared: R.shared,
       players: seats.map(function (st, i) {
-        return { index: i, cat: st.cat, human: st.human, score: 0, captured: 0, nap: 0, takoLeft: TAKO_PER_PLAYER, hand: shared || [] };
+        return { index: i, cat: st.cat, human: st.human, score: 0, captured: 0, nap: 0, shopPts: 0, takoLeft: TAKO_PER_PLAYER, hand: shared || [] };
       }),
       cells: new Array(N).fill(null),
       vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
@@ -111,7 +111,7 @@
     return {
       n: s.n, size: s.size, handMax: s.handMax, shared: s.shared,
       players: s.players.map(function (p) {
-        return { index: p.index, cat: p.cat, human: p.human, score: p.score, captured: p.captured, nap: p.nap, takoLeft: p.takoLeft, hand: sharedHand || p.hand.slice() };
+        return { index: p.index, cat: p.cat, human: p.human, score: p.score, captured: p.captured, nap: p.nap, shopPts: p.shopPts, takoLeft: p.takoLeft, hand: sharedHand || p.hand.slice() };
       }),
       cells: s.cells.map(function (c) { return c ? { m: c.m, uid: c.uid, cat: c.cat, shop: c.shop } : null; }),
       vo: new Int8Array(s.vo), takos: s.takos.slice(), exits: s.exits, shopDone: Object.assign({}, s.shopDone),
@@ -194,12 +194,16 @@
       f.verts.forEach(function (v) { s.vo[v] = mark; });
       var pts = k ? Math.floor(f.pts / k) : 0;               /* 同率首位は 人数で わって 切りすて */
       f.tops.forEach(function (p) { s.players[p].score += pts; });
-      /* 持ち主が きまったら、境界の 相手の ねこを とる（盤から のぞき 1匹 1点）。自分の ねこは のこる */
+      /* 持ち主が きまったら、境界の 相手の ねこと、中で ねて いる 相手の ひるね猫を とる（盤から のぞき 1匹 1点）。自分の ねこは のこる */
       var cap = 0;
       if (k === 1) {
         Object.keys(f.border).forEach(function (c) {
           var t = s.cells[c];
           if (t && t.cat !== null && t.cat !== f.tops[0]) { t.cat = null; cap++; }
+        });
+        Object.keys(f.tiles).forEach(function (c) {
+          var t = s.cells[c];
+          if (isNapper(t) && t.cat !== f.tops[0]) { t.cat = null; cap++; }
         });
         s.players[f.tops[0]].score += cap;
         s.players[f.tops[0]].captured += cap;
@@ -214,7 +218,7 @@
       if (st.empty) return;
       var k = st.tops.length, pts = k ? Math.floor(SHOP_POINTS / k) : 0;   /* 同数は 人数で わって 切りすて */
       s.shopDone[c] = k === 0 ? NOBODY : k > 1 ? TIE : st.tops[0];
-      st.tops.forEach(function (p) { s.players[p].score += pts; });
+      st.tops.forEach(function (p) { s.players[p].score += pts; s.players[p].shopPts += pts; });
       events.push({ shop: true, tops: st.tops, pts: pts });
     });
     if (events.length) s._f = null;
@@ -332,7 +336,7 @@
   function placeTile(s, hi, r, c) {
     var t = s.players[s.current].hand.splice(hi, 1)[0];
     /* 猫道（か 魚屋）の ある タイルは おいた 人の 色（ねこが のる） */
-    /* 平地（道なし）にも ねこが のる：ひるね猫。なわばりの 票には ならず、さいごに なわばりの 外に いれば 1匹 5点 */
+    /* 平地（道なし）にも ねこが のる：ひるね猫。なわばりの 票には ならない。相手の なわばりに のまれたら とられ、さいごまで 外なら 1匹 3点 */
     s.cells[c] = { m: rot(t.m, r), uid: t.uid, shop: !!t.shop, cat: !noCatZone(s, c) ? s.current : null };
     s.last = c;
     s._f = null;
@@ -378,7 +382,7 @@
   function isNapper(t) { return !!t && t.m === 0 && !t.shop && t.cat !== null; }
 
   /** さいごに：なわばりに ならなかった 面（トンネルに つながった 面・未完成の 面）に いる ひるね猫は 1匹 NAP_POINTS 点。
-      完成した なわばりの 中の ひるね猫は 0点 */
+      なわばりの 中の ひるね猫は 0点（相手の なわばりなら 完成した ときに とられて いる） */
   function napFree(s, c) {
     var F = faces(s), x = c % SIZE, y = (c / SIZE) | 0;
     var f = F.faces[F.of[y * V + x]];        /* 平地の タイルは 1つの 面の 中に ある（どの 角でも おなじ 面） */
@@ -744,7 +748,7 @@
     return '<div class="nn-overlay"><div class="nn-modal"><h2 class="nn-modal__title">おしまい！</h2>' +
       (game.endReason === 'noterr' ? '<p class="nn-modal__note">もう あたらしい なわばりが できないので おしまい</p>' : '') +
       '<div class="nn-final">' + rows + '</div>' +
-      '<p class="nn-modal__note">なわばりは かかった タイル 1まい＝1点 ＋ 魚屋 5点 ＋ とった ねこ 1匹＝1点 ＋ なわばりの 外の ひるね猫 1匹＝5点</p>' +
+      '<p class="nn-modal__note">なわばりは かかった タイル 1まい＝1点 ＋ 魚屋 5点 ＋ とった ねこ 1匹＝1点 ＋ なわばりの 外の ひるね猫 1匹＝3点</p>' +
       '<button type="button" class="nn-btn nn-btn--go" data-action="again">もういちど</button>' +
       '<button type="button" class="nn-btn nn-btn--sub" data-action="view">盤面を みる</button></div></div>';
   }
@@ -767,8 +771,9 @@
       '<li>まわりの 盤内の マスが ぜんぶ うまったら 完成。<b>まわり 3×3（魚屋も ふくむ）で ねこが いちばん 多い 人</b>（タコは 2匹ぶん）が <b>5点</b>を もらう。同数は 人数で わる。</li>' +
       '<li>おいた 人の 点とは かぎらない。まわりに ねこを おいて 守るか、よせて うばうか。完成しないまま おわったら 0点。行き止まりの 道つきの 魚屋の ねこは、ふつうの ねこと おなじく なわばりの 票にも なる。</li>' +
       '</ul><h3>💤 平地の ひるね猫</h3><ul>' +
-      '<li>道の ない 平地の タイルにも、おいた 人の ねこが のる（ひるね猫）。なわばりの 票には ならず、とられない。魚屋の まわりの 3×3 では 1匹と 数える。</li>' +
-      '<li><b>ゲームの さいごに</b>、なわばりに ならなかった ところ（トンネルに つながった 面・未完成の 面）に いる <b>ひるね猫 1匹につき 5点</b>。完成した なわばりの 中の ひるね猫は 0点。</li>' +
+      '<li>道の ない 平地の タイルにも、おいた 人の ねこが のる（ひるね猫）。なわばりの 票には ならない。魚屋の まわりの 3×3 では 1匹と 数える。</li>' +
+      '<li>ひるね猫の いる 面が <b>相手の なわばりとして 完成したら、その ひるね猫は とられる</b>（相手に 1点）。</li>' +
+      '<li><b>ゲームの さいごまで</b> なわばりの 外（トンネルに つながった 面・未完成の 面）で ねて いた ひるね猫は <b>1匹 3点</b>。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
       '<li>タイルを おく かわりに、<b>盤の 上の 自分の ねこ 1匹を タコと 交換</b>できる（自分の ねこが いる マスに だけ）。</li>' +
       '<li>上下左右の <b>猫道に いる 相手の ねこ だけ</b>が 持ち主の 手もとへ 逃げる（だれの 点にも ならない）。自分の ねこ・<b>魚屋の ねこ</b>・完成した なわばりの ねこは 逃げない。</li>' +
@@ -778,10 +783,10 @@
       '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 上と 下の 辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、<b>面が かかった タイル 1まいにつき 1点</b>（¼だけ かかって いても 1点）を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
       '<li>同数なら 点を 人数で わって 切りすて。</li>' +
-      '<li>持ち主は 境界の <b>相手の ねこを とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。自分の ねこは のこる。</li>' +
+      '<li>持ち主は 境界の <b>相手の ねこ</b>と、中で ねて いる <b>相手の ひるね猫を とる</b>（盤から のぞく。1匹 1点）。とられた 猫道は だれの 色でも なくなる。自分の ねこは のこる。</li>' +
       '</ul><h3>おわり</h3><ul>' +
       '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても トンネルを ふくむ 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
-      '<li>完成して いない 魚屋は 0点。なわばりの 外の ひるね猫は 1匹 5点。</li>' +
+      '<li>完成して いない 魚屋は 0点。なわばりの 外の ひるね猫は 1匹 3点。</li>' +
       '</ul></div></div>';
   }
 
