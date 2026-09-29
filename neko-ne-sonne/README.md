@@ -15,6 +15,7 @@
 | `main.js` | ルール（盤・面の 計算・得点）と CPU と 描画。ルールの 関数は 描画と わけて ある |
 | `style.css` | 見た目（猫街ろまんと 同じ 配色） |
 | `images/cat-*.png` | 4柄の ねこ（3×3 スプライト。tap-on-neko から コピー） |
+| `images/town-*.webp`・`shop-*.webp`・`tunnel-*.webp` | タイルの 絵（街区 18・魚屋 6・トンネル 3）。Gemini で 作った `docs/art/` の 3まいを `node docs/cut-art.js` で 切りわけた もの |
 | `docs/tile-prompts.md` | タイルの 絵（上から 見た 猫街の 街区・魚屋・トンネル）の Gemini 用 生成プロンプト。猫道の ラインは ゲームが 描き、絵は その 下に しく |
 | `docs/guides/` | プロンプトに 添付する 見本（`guide-ground.png` 街区の 配置・`guide-items.png` 小物の 大きさ・`board-sample.png` いまの 盤・`style-title.jpg` 画風）。`docs/make-prompts.js` で 作りなおせる |
 

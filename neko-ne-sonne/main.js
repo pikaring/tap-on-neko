@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '2026-09-29s';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
+  var VERSION = '2026-09-30a';   /* 画面に 出す 版（古い キャッシュで あそんで いないか 見わける ため） */
   var SIZE = 9, N = 81, V = 10;   /* 盤の 大きさ（newGame で 人数に あわせて きめる） */
   function setSize(size) { SIZE = size; N = size * size; V = size + 1; }
 
@@ -523,20 +523,24 @@
       '<image href="' + url + '" x="' + (-c * 340) + '" y="' + (-r * 340) + '" width="1020" height="1020" /></svg>';
   }
 
+  /* 街区の 絵（images/town-00〜17）。道の ない 平地は 1マス まるごとの 絵（銭湯・図書館・お寺・畑）、
+     ほかは まん中に 十字の 空き地が ある 絵。おなじ タイルは いつも おなじ 絵（回転しても 絵は 回さない） */
+  var TOWN_WHOLE = [6, 11, 13, 15];
+  var TOWN_LANE = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 12, 14, 16, 17];
+  function townOf(t) {
+    var k = !t.m && !t.shop ? TOWN_WHOLE[t.uid % TOWN_WHOLE.length] : TOWN_LANE[t.uid % TOWN_LANE.length];
+    return (k < 10 ? '0' : '') + k;
+  }
+
   /** o.quads：{NW: 色, ...} 採点ずみの なわばりの ¼マスの 色 */
   function tileSVG(t, o) {
     o = o || {};
-    var s = ['<rect width="100" height="100" fill="var(--ground)" />'];
+    var s = ['<rect width="100" height="100" fill="var(--ground)" />',
+      '<image href="images/town-' + townOf(t) + '.webp" width="100" height="100" preserveAspectRatio="none" opacity=".7" />'];
     Object.keys(QUAD_RECT).forEach(function (q) {
       if (!o.quads || !o.quads[q]) return;
       var r = QUAD_RECT[q];
-      s.push('<rect x="' + r[0] + '" y="' + r[1] + '" width="50" height="50" fill="' + o.quads[q] + '" opacity=".42" />');
-    });
-    /* 街区の かざり（屋根と 木）：猫道を よけて ¼マスの すみに */
-    [['NW', 14, 14], ['NE', 86, 14], ['SW', 14, 86], ['SE', 86, 86]].forEach(function (k, i) {
-      var seed = (t.uid * 7 + i * 3) % 5;
-      if (seed === 0) s.push('<circle cx="' + k[1] + '" cy="' + k[2] + '" r="8" fill="var(--tree)" />');
-      else if (seed === 1) s.push('<rect x="' + (k[1] - 9) + '" y="' + (k[2] - 8) + '" width="18" height="16" rx="2" fill="var(--roof)" />');
+      s.push('<rect x="' + r[0] + '" y="' + r[1] + '" width="50" height="50" fill="' + o.quads[q] + '" opacity=".58" />');
     });
     DIRS.forEach(function (d) {
       if (!(t.m & d)) return;
@@ -559,15 +563,9 @@
         s.push('<circle cx="' + (50 + e[0]) / 2 + '" cy="' + (50 + e[1]) / 2 + '" r="3" fill="var(--path-edge)" opacity=".7" />');
       });
     }
-    /* 魚屋：青い しまの 日よけの 小さな 店と さかな。ねこは 店先に */
+    /* 魚屋：6種の 屋台の どれか。ねこは 店先に */
     if (t.shop) {
-      s.push('<g transform="translate(22,16)">' +
-        '<rect x="0" y="10" width="56" height="40" rx="3" fill="#fff8ec" stroke="#3a2a20" stroke-width="2.5"/>' +
-        '<path d="M-3 12 L59 12 L55 0 L1 0 Z" fill="#fff" stroke="#3a2a20" stroke-width="2.5"/>' +
-        '<path d="M8 0 L6 12 M20 0 L19 12 M36 0 L37 12 M48 0 L50 12" stroke="#4a7fb8" stroke-width="6"/>' +
-        '<ellipse cx="19" cy="28" rx="10" ry="5" fill="#5a7fa8"/><path d="M28 28 L35 23 L35 33 Z" fill="#5a7fa8"/>' +
-        '<ellipse cx="38" cy="40" rx="8" ry="4" fill="#d9705a"/><path d="M45 40 L50 36 L50 44 Z" fill="#d9705a"/>' +
-        '</g>');
+      s.push('<image href="images/shop-' + (t.uid % 6) + '.webp" x="6" y="-2" width="88" height="88" />');
       if (o.shopDone !== undefined && o.shopDone !== null) {
         var dc = o.shopDone >= 0 ? CATS[game.players[o.shopDone].cat].color : '#8a8a8a';   /* 同数・だれも いない は 灰色 */
         s.push('<circle cx="84" cy="16" r="11" fill="' + dc + '" stroke="#fff" stroke-width="2"/><path d="M78 16 L83 21 L91 11" stroke="#fff" stroke-width="3.5" fill="none"/>');
@@ -735,11 +733,9 @@
     var extra = '';
     /* トンネル（上下の 辺の まん中。盤の 縁に あいた 穴。ここを ふくむ 面は 0点） */
     var mid = (SIZE - 1) / 2 + 0.5;
-    var arch = '<svg viewBox="0 0 40 22" aria-hidden="true"><path d="M1 22 V11 A19 11 0 0 1 39 11 V22 Z" fill="#a39686" stroke="#3a2a20" stroke-width="2"/>' +
-      '<path d="M9 22 V13 A11 8 0 0 1 31 13 V22 Z" fill="#2b211a"/>' +
-      '<path d="M5 9 L9 11 M14 3 L15 7 M26 3 L25 7 M35 9 L31 11" stroke="#3a2a20" stroke-width="1.5"/></svg>';
-    [['top', mid, 0], ['bottom', mid, SIZE]].forEach(function (e) {
-      extra += '<span class="nn-tunnel is-' + e[0] + '" style="left:' + (e[1] / SIZE * 100) + '%;top:' + (e[2] / SIZE * 100) + '%" title="トンネル（ここを ふくむ なわばりは 0点）">' + arch + '</span>';
+    [['top', mid, 0, 0], ['bottom', mid, SIZE, 1]].forEach(function (e) {
+      extra += '<span class="nn-tunnel is-' + e[0] + '" style="left:' + (e[1] / SIZE * 100) + '%;top:' + (e[2] / SIZE * 100) + '%" title="トンネル（ここを ふくむ なわばりは 0点）">' +
+        '<img src="images/tunnel-' + e[3] + '.webp" alt=""></span>';
     });
     return '<div class="nn-board-box"><div class="nn-board" style="grid-template-columns:repeat(' + SIZE + ',1fr);grid-template-rows:repeat(' + SIZE + ',1fr)">' +
       cells + extra + '</div></div>';

@@ -199,14 +199,12 @@ button.nn-cell { cursor: pointer; }
 /* トンネル（四辺の まん中）：盤の 縁に あいた 穴。内がわに 口を むける。ここを ふくむ 面は 0点 */
 .nn-tunnel {
   position: absolute; z-index: 3; pointer-events: none;
-  width: calc(100% / var(--n, 9) * .66);
-  transform-origin: 50% 100%;
+  width: calc(100% / var(--n, 9) * .62);
 }
-.nn-tunnel svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .25)); }
-.nn-tunnel.is-bottom { transform: translate(-50%, -100%); }
-.nn-tunnel.is-top    { transform: translate(-50%, -100%) rotate(180deg); }
-.nn-tunnel.is-left   { transform: translate(-50%, -100%) rotate(90deg); }
-.nn-tunnel.is-right  { transform: translate(-50%, -100%) rotate(-90deg); }
+/* 盤の 縁に またがって おく（絵は 回さない） */
+.nn-tunnel img { display: block; width: 100%; height: auto; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .3)); }
+.nn-tunnel.is-bottom { transform: translate(-50%, -62%); }
+.nn-tunnel.is-top    { transform: translate(-50%, -40%); }
 
 /* =========================================================
    あそんで いる 画面：盤は つねに 見える。操作らんの 高さは 固定（中身が かわっても 盤が ずれない）
