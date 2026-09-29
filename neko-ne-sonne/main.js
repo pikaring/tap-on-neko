@@ -1,7 +1,7 @@
 /* =========================================================
    ネコネソンヌ ― 猫道を つないで 面を かこむ 陣取り
    ・盤は 9×9（2人は 7×7）。タイルには 猫道（中心から 辺の まん中へ）が 0〜4本
-   ・猫道と 盤の 端が 境界線。ただし 四辺の まん中は「出口」で、出口に ふれた 面は 0点
+   ・猫道と 盤の 端が 境界線。ただし 四辺の まん中には「トンネル」が あり、トンネルを ふくむ 面は 0点
    ・ねこは 猫道の 上（タイルの 中心）に おく
    ・面が 完成（中に 空きマスが ない）したら すぐ 採点：面に 面した 猫道の ねこの
      多数派が ¼マス＝1点を もらう。境界の ねこは 全員 手もとへ もどり、
@@ -63,7 +63,7 @@
     DECK_DEF.forEach(function (def) { for (var i = 0; i < def.n; i++) d.push({ uid: uid++, m: def.m }); });
     return shuffle(d);
   }
-  /** 出口：四辺の まん中の マスの 外がわの 辺（その 両はしの 格子点） */
+  /** トンネル：四辺の まん中の マスの 外がわの 辺（その 両はしの 格子点）。ここを ふくむ 面は 0点 */
   function exitVerts() {
     var mid = (SIZE - 1) / 2, last = V - 1, set = {};
     [[mid, 0], [mid + 1, 0], [mid, last], [mid + 1, last], [0, mid], [0, mid + 1], [last, mid], [last, mid + 1]]
@@ -88,7 +88,7 @@
       cells: new Array(N).fill(null),
       vo: new Int8Array(V * V).fill(UNSCORED),   /* 格子点ごとの 持ち主（採点ずみの 面） */
       markers: [],                               /* なわばりの 目じるしの ねこ {v, p} */
-      takos: [],                                 /* タコを おいた マス */
+      takos: [],                                 /* タコ {c: マス, p: おいた 人}。ねこと おなじく 1票 */
       exits: exitVerts(),
       deck: buildDeck(),
       current: 0, turn: 0, passes: 0, phase: 'playing', last: -1, log: [], _f: null
@@ -132,7 +132,7 @@
   var AROUND = [[-1, -1, 'SE'], [0, -1, 'SW'], [-1, 0, 'NE'], [0, 0, 'NW']];
   var QUAD_ARMS = { NW: DN | DW, NE: DN | DE, SW: DS | DW, SE: DS | DE };
 
-  /** 面を まるごと 計算（格子点の 塗りつぶし）。盤の 端は 境界、出口に ふれた 面は 点なし */
+  /** 面を まるごと 計算（格子点の 塗りつぶし）。盤の 端は 境界、トンネルを ふくむ 面は 点なし */
   function computeFaces(s) {
     var of = new Int16Array(V * V).fill(-1), faces = [];
     for (var v0 = 0; v0 < V * V; v0++) {
@@ -158,11 +158,12 @@
         if (vy > 0 && connV(s, vx, vy - 1)) nbrs.push(v - V);
         nbrs.forEach(function (u) { if (of[u] < 0) { of[u] = f.id; stack.push(u); } });
       }
-      /* 同じ ねこは、同じ 面では 何か所で ふれても 1票 */
+      /* 同じ ねこは、同じ 面では 何か所で ふれても 1票。タコも おいた 人の 1票 */
       Object.keys(f.border).forEach(function (c) {
         var t = s.cells[c];
         if (t && t.cat !== null) f.w[t.cat]++;
       });
+      (s.takos || []).forEach(function (tk) { if (f.border[tk.c]) f.w[tk.p]++; });
       var max = Math.max.apply(null, f.w);
       for (var p = 0; p < s.n; p++) if (max > 0 && f.w[p] === max) f.tops.push(p);
       f.owner = f.tops.length === 1 ? f.tops[0] : null;
@@ -242,18 +243,20 @@
     return adj;
   }
 
-  /* ---- タコ：その マスと 上下左右の ねこを 手もとへ かえし、その 5マスには 以後 ねこを おけない ---- */
+  /* ---- タコ：その マスと 上下左右の ねこを 持ち主の 手もとへ かえし（だれの 点にも ならない）、
+     その 5マスには 以後 ねこを おけない。タコ 自身は おいた 人の ねこ 1匹と して なわばりを 数える ---- */
   function takoZone(c) { return [c].concat(DIRS.map(function (d) { return nb(c, d); }).filter(function (x) { return x >= 0; })); }
-  function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t).indexOf(c) >= 0; }); }
-  function canTako(s, c) { return !!s.cells[c] && s.takos.indexOf(c) < 0 && s.players[s.current].takoLeft > 0; }
+  function noCatZone(s, c) { return s.takos.some(function (t) { return takoZone(t.c).indexOf(c) >= 0; }); }
+  function takoAt(s, c) { for (var i = 0; i < s.takos.length; i++) if (s.takos[i].c === c) return s.takos[i]; return null; }
+  function canTako(s, c) { return !!s.cells[c] && !takoAt(s, c) && s.players[s.current].takoLeft > 0; }
   function putTako(s, c) {
-    s.takos.push(c);
+    s.takos.push({ c: c, p: s.current });
     s.players[s.current].takoLeft--;
     var removed = 0;
     takoZone(c).forEach(function (x) {
       var t = s.cells[x];
       if (!t || t.cat === null) return;
-      if (s.mode !== 'go') s.players[t.cat].catsLeft++;   /* 猫街モード：持ち主の 手もとへ（囲碁モードは 無限なので 盤から のぞくだけ） */
+      if (s.mode !== 'go') s.players[t.cat].catsLeft++;   /* 持ち主の 手もとへ（囲碁モードは 猫が 無限なので 数は かわらない） */
       t.cat = null;
       removed++;
     });
@@ -263,7 +266,7 @@
 
   /** まだ あたらしい なわばりが できる 見こみが ある？
       空きマスを ぜんぶ 十字（いちばん こまかく 区切る 形）で うめた と 考え、
-      空きマスの 角を ふくむ 面が どれも 出口に ふれるなら、もう なわばりは ふえない */
+      空きマスの 角を ふくむ 面が どれも トンネルを ふくむなら、もう なわばりは ふえない */
   function canStillScore(s) {
     var near = {}, any = false;
     s.cells.forEach(function (c, i) {
@@ -515,7 +518,7 @@
       '<p class="nn-hero__lead">猫道を のばして つなげ、<br>かこんだ ところを なわばりに しよう。</p>' +
       '<ul class="nn-hero__points">' +
       '<li>🐾 <b>猫道を のばす</b>：タイルの 猫道を となりに つなげて おく</li>' +
-      '<li>🔁 <b>かこむ</b>：猫道と 盤の 端で かこんだ 面が なわばり（出口🚪に ふれたら ×）</li>' +
+      '<li>🔁 <b>かこむ</b>：猫道と 盤の 端で かこんだ 面が なわばり（トンネルを ふくむと ×）</li>' +
       '<li>🐈 <b>見はる</b>：まわりの 猫道に ねこが 多い 人の もの</li>' +
       '</ul></div>' +
       '<section class="nn-card"><h2 class="nn-card__title">だれが あそぶ？（2〜4人）</h2>' + rows +
@@ -561,7 +564,7 @@
     }
     if (ui.mode === 'tako') {
       return '<div class="nn-panel nn-panel--act">' +
-        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり、その 5マスには もう ねこを おけない</p>' +
+        '<p class="nn-panel__hint">むらさきの タイルに タコを おくと、その マスと 上下左右の ねこが 手もとへ もどり、その 5マスには もう ねこを おけない。タコは ねこ 1匹ぶんの 票に なる</p>' +
         '<button type="button" class="nn-btn nn-btn--sub" data-action="tako-cancel">やめる</button></div>';
     }
     if (ui.mode === 'follow') {
@@ -606,7 +609,7 @@
       for (var c2 = 0; c2 < N; c2++) if (canTako(game, c2)) mark[c2] = 'is-tako-target';
     }
     var zone = {};
-    game.takos.forEach(function (tc) { takoZone(tc).forEach(function (x) { zone[x] = true; }); });
+    game.takos.forEach(function (tk) { takoZone(tk.c).forEach(function (x) { zone[x] = true; }); });
     function quadColor(vx, vy) {
       var o = game.vo[vy * V + vx];
       if (o >= 0) return CATS[game.players[o].cat].color;
@@ -617,7 +620,8 @@
       var t = game.cells[i], x = i % SIZE, y = (i / SIZE) | 0;
       var cls = 'nn-cell' + (mark[i] ? ' ' + mark[i] : '') + (i === game.last ? ' is-last' : '') + (t ? '' : ' is-empty') + (zone[i] ? ' is-tako-zone' : '');
       var inner = t ? tileSVG(t, { quads: { NW: quadColor(x, y), NE: quadColor(x + 1, y), SW: quadColor(x, y + 1), SE: quadColor(x + 1, y + 1) } }) : '';
-      if (game.takos.indexOf(i) >= 0) inner += '<img class="nn-tako" src="images/tako.png" alt="タコ">';
+      var tk = takoAt(game, i);
+      if (tk) inner += '<span class="nn-tako" style="--pc:' + CATS[game.players[tk.p].cat].color + '"><img src="images/tako.png" alt="タコ（' + CATS[game.players[tk.p].cat].name + '）"></span>';
       cells += mark[i] ? '<button type="button" class="' + cls + '" data-action="cell" data-c="' + i + '">' + inner + '</button>'
         : '<div class="' + cls + '">' + inner + '</div>';
     }
@@ -626,10 +630,13 @@
       var pl = game.players[mk.p];
       return '<span class="nn-marker" style="' + vertPos(mk.v) + ';--pc:' + CATS[pl.cat].color + '">' + catFace(pl.cat, 'nn-marker__face', [true, 1, 1]) + '</span>';
     }).join('');
-    /* 出口（四辺の まん中） */
+    /* トンネル（四辺の まん中。盤の 縁に あいた 穴。ここを ふくむ 面は 0点） */
     var mid = (SIZE - 1) / 2 + 0.5;
+    var arch = '<svg viewBox="0 0 40 22" aria-hidden="true"><path d="M1 22 V11 A19 11 0 0 1 39 11 V22 Z" fill="#a39686" stroke="#3a2a20" stroke-width="2"/>' +
+      '<path d="M9 22 V13 A11 8 0 0 1 31 13 V22 Z" fill="#2b211a"/>' +
+      '<path d="M5 9 L9 11 M14 3 L15 7 M26 3 L25 7 M35 9 L31 11" stroke="#3a2a20" stroke-width="1.5"/></svg>';
     [['top', mid, 0], ['bottom', mid, SIZE], ['left', 0, mid], ['right', SIZE, mid]].forEach(function (e) {
-      extra += '<span class="nn-exit is-' + e[0] + '" style="left:' + (e[1] / SIZE * 100) + '%;top:' + (e[2] / SIZE * 100) + '%" title="出口">🚪</span>';
+      extra += '<span class="nn-tunnel is-' + e[0] + '" style="left:' + (e[1] / SIZE * 100) + '%;top:' + (e[2] / SIZE * 100) + '%" title="トンネル（ここを ふくむ なわばりは 0点）">' + arch + '</span>';
     });
     return '<div class="nn-board-box"><div class="nn-board" style="grid-template-columns:repeat(' + SIZE + ',1fr);grid-template-rows:repeat(' + SIZE + ',1fr)">' +
       cells + extra + '</div></div>';
@@ -674,16 +681,17 @@
       '<li>おいた タイルの 猫道の 上に、じぶんの ねこを 1匹 おく（囲碁モードは 自動・猫街モードは えらぶ）。</li>' +
       '<li>おける ときは かならず おく。どの タイルも おけない ときは、おける ものが 出るまで 1まいずつ すてて 引きなおす（自動）。山札が なければ パス。</li>' +
       '</ul><h3>🐙 タコ（1人 1回）</h3><ul>' +
-      '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 手もとへ もどる（囲碁モードは 盤から いなくなる）。</li>' +
+      '<li>タイルを おく かわりに、盤の タイルに タコを おける。その マスと 上下左右の ねこは 持ち主の 手もとへ もどる（だれの 点にも ならない）。</li>' +
       '<li>その 5マスには、あとから おかれた タイルにも ねこを おけない。</li>' +
+      '<li>タコは おいた 人の ねこ 1匹と おなじに 数え、ふれて いる なわばりの 票に なる（とられない）。</li>' +
       '</ul><h3>なわばり</h3><ul>' +
-      '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中の <b>出口🚪に ふれた 面は 0点</b>。</li>' +
+      '<li>猫道と 盤の 端は 境界線。<b>かこまれた 面</b>が なわばりの 候補。ただし 四辺の まん中には <b>トンネル</b>が あり、<b>トンネルを ふくむ 面は 0点</b>（外へ ぬけられて しまう）。</li>' +
       '<li>面の 中に 空きマスが なくなったら 完成して、<b>すぐ 採点</b>。その 面に 面した 猫道の 上の ねこが いちばん 多い 人が、面積 ¼マス＝1点を もらう（1匹の ねこは、ふれて いる 面ごとに 1票）。</li>' +
       '<li>同数なら 点を 人数で わって 切りすて。</li>' +
       '<li>囲碁モード：持ち主は 境界の 相手の ねこを とる（1匹 1点）。自分の ねこは のこる。</li>' +
       '<li>猫街モード：<b>境界の ねこは 全員 手もとへ もどる</b>。なわばりを とった 人は、その 中に 目じるしの ねこを 1匹 おく（もどらない）。</li>' +
       '</ul><h3>おわり</h3><ul>' +
-      '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても 出口に つながる 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
+      '<li>盤が うまるか、<b>もう あたらしい なわばりが できなく なったら</b>（のこりの 空きマスを どう うめても トンネルを ふくむ 面しか できない）、または 山札と タイルが なくなるか、全員 つづけて パスしたら おしまい。</li>' +
       '<li>完成して いない 面は 0点。猫街モードは <b>手もとに のこった ねこ 1匹＝1点</b>。</li>' +
       '</ul></div></div>';
   }
@@ -717,7 +725,7 @@
 
   function doTako(c) {
     var n = putTako(game, c);
-    say('🐙 ' + pname(game.current) + 'が タコを おいた！ ねこ ' + n + '匹が ' + (game.mode === 'go' ? 'にげた' : '手もとへ にげかえった'), 'tako');
+    say('🐙 ' + pname(game.current) + 'が タコを おいた！ ねこ ' + n + '匹が 手もとへ にげかえった', 'tako');
     afterAction(true);
   }
 

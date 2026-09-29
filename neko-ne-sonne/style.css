@@ -202,12 +202,17 @@ button.nn-cell { cursor: pointer; }
 }
 .nn-marker__face { width: 100%; height: 100%; }
 
-/* 出口（四辺の まん中）：ここに ふれた 面は 0点 */
-.nn-exit {
-  position: absolute; z-index: 3; transform: translate(-50%, -50%);
-  font-size: clamp(14px, 3.6vw, 22px); line-height: 1; pointer-events: none;
-  padding: 2px; border-radius: 6px; background: #fff8ec; box-shadow: 0 0 0 2px var(--c-line);
+/* トンネル（四辺の まん中）：盤の 縁に あいた 穴。内がわに 口を むける。ここを ふくむ 面は 0点 */
+.nn-tunnel {
+  position: absolute; z-index: 3; pointer-events: none;
+  width: calc(100% / var(--n, 9) * .66);
+  transform-origin: 50% 100%;
 }
+.nn-tunnel svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .25)); }
+.nn-tunnel.is-bottom { transform: translate(-50%, -100%); }
+.nn-tunnel.is-top    { transform: translate(-50%, -100%) rotate(180deg); }
+.nn-tunnel.is-left   { transform: translate(-50%, -100%) rotate(90deg); }
+.nn-tunnel.is-right  { transform: translate(-50%, -100%) rotate(-90deg); }
 
 /* =========================================================
    あそんで いる 画面：盤は つねに 見える。操作らんの 高さは 固定（中身が かわっても 盤が ずれない）
@@ -272,7 +277,11 @@ button.nn-cell { cursor: pointer; }
 .nn-btn--tako { background: #7b4bb3; }
 
 /* タコ：おいた マスの 絵と、ねこを おけない 5マス */
-.nn-tako { position: absolute; inset: 8%; width: 84%; height: 84%; z-index: 1; pointer-events: none; }
+.nn-tako {
+  position: absolute; inset: 10%; z-index: 1; pointer-events: none;
+  border-radius: 50%; background: color-mix(in srgb, var(--pc) 28%, #fff); box-shadow: 0 0 0 3px var(--pc);
+}
+.nn-tako img { display: block; width: 100%; height: 100%; }
 .nn-cell.is-tako-zone::before {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(45deg, rgba(123, 75, 179, .22) 0 5px, transparent 5px 10px);
@@ -281,7 +290,7 @@ button.nn-cell { cursor: pointer; }
 .nn-cell.is-tako-target::after { content: ''; position: absolute; inset: 0; z-index: 2; box-shadow: inset 0 0 0 3px #7b4bb3; background: rgba(123, 75, 179, .18); }
 
 /* できごとの しらせは 盤の 上の ほうに（操作らんに かぶらない） */
-.nn-toasts { top: 56px; bottom: auto; }
+.nn-toasts { top: 132px; bottom: auto; }
 .nn-toast.is-tako { background: rgba(123, 75, 179, .95); }
 
 @media (min-width: 880px) and (orientation: landscape) {
