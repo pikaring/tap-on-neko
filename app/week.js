@@ -1484,6 +1484,7 @@ function showTitle() {
   box.appendChild(btns);
   button(btns, 'wk-btn--go', '📅', '一週間モード', save.run ? 'つづき あり' : '7日間で ハイスコア', weekMenu);
   button(btns, 'wk-btn--endless', '♾️', 'エンドレスモード', 'のんびり おせわ', function () { location.href = 'endless.html'; });
+  button(btns, 'wk-btn--board', '🧩', 'ネコネソンヌ', 'なわばり 陣取り（2〜4人）', function () { location.href = '../neko-ne-sonne/'; });
 }
 
 /** 一週間モード：つづきが あれば えらぶ */
